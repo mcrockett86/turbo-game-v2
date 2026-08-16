@@ -83,6 +83,9 @@ function selectDog(dogId: DogId, selectedCard: HTMLElement): void {
   
   Audio.playSfx('select');
   
+  // Save the selection into state
+  State.selectDog(dogId);
+  
   // Highlight selected card
   document.querySelectorAll('.dog-card').forEach(card => {
     card.classList.remove('selected');
@@ -114,8 +117,7 @@ function startAdventure(): void {
     const roomId = 'start';
     
     const zone = ZONES[zoneId];
-    const roomIndex = zone?.rooms?.findIndex(r => r.id === roomId) ?? 0;
-    const roomData = zone?.rooms?.[roomIndex];
+    const roomData = zone?.rooms?.find(r => r.id === roomId);
     
     if (roomData) {
       try {

@@ -346,13 +346,7 @@ export class FpRoomRenderer extends BaseRenderer {
   }
   
   private renderFog(): void {
-    if (!this.ctx || !this.room) return;
-    
-    // Add atmospheric fog overlay based on room color
-    const fogColor = this.darkenColor(this.room.color, 0.3);
-    
-    this.ctx.fillStyle = fogColor;
-    this.ctx.fillRect(0, 0, this.canvas!.width, this.canvas!.height);
+    // No full-screen fog overlay — was covering all rendered content
   }
   
   private getFeatureColor(featureType: string): string {
