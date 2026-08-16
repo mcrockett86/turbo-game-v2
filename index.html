@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turbo: Lost & Found</title>
+  <link rel="stylesheet" href="./turbo-web/css/style.css">
+</head>
+<body>
+  <!-- Game Container -->
+  <div id="game-container">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="screen active">
+      <h1>Turbo: Lost & Found</h1>
+      <p>Loading...</p>
+    </div>
+
+    <!-- Dog Selection Screen -->
+    <div id="dog-select" class="screen hidden">
+      <h1>Choose Your Dog</h1>
+      <p class="subtitle">Every dog deserves a home.</p>
+      <div id="dog-grid" class="dog-grid"></div>
+      <button id="start-adventure-btn" class="hidden">Start Adventure</button>
+    </div>
+
+    <!-- Game View Container -->
+    <div id="game-view" class="screen hidden">
+      <canvas id="game-canvas" width="1280" height="720"></canvas>
+      <div id="hud-overlay">
+        <div id="happiness-bar-container">
+          <span id="happiness-label">HAPPINESS</span>
+          <div id="happiness-bar"><div id="happiness-fill"></div></div>
+        </div>
+        <div id="zone-indicator"></div>
+        <button id="hint-btn" class="hud-btn">🗺️</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="./turbo-web/src/main.ts"></script>
+</body>
+</html>

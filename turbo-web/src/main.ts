@@ -4,7 +4,7 @@
 
 import { State } from './engine/state';
 import { Audio } from './engine/audio';
-import { ZONES, ITEMS } from './data';
+import { DOGS, ZONES, ITEMS } from './data';
 import { FpRoomRenderer } from './engine/render/fp-room-renderer';
 import type { DogId } from './types';
 
@@ -27,25 +27,35 @@ let currentScreen: Screen = 'loading';
 function init(): void {
   console.log('[Turbo] Initializing...');
   
-  // Show loading screen
-  showScreen('loading');
-  
-  // Initialize audio context (requires user gesture in browsers)
-  Audio.init();
-  
-  // Simulate asset loading delay
-  setTimeout(() => {
-    console.log('[Turbo] Assets loaded, switching to dog select');
-    setupDogSelection();
-    showScreen('select_dog');
-  }, 1000);
+  try {
+    // Show loading screen
+    showScreen('loading');
+    
+    // AudioContext requires user gesture — defer init until first click
+    window.addEventListener('click', () => Audio.init(), { once: true });
+    
+    // Simulate asset loading delay
+    setTimeout(() => {
+      console.log('[Turbo] Assets loaded, switching to dog select');
+      setupDogSelection();
+      showScreen('select_dog');
+    }, 1000);
+  } catch (e) {
+    console.error('[Turbo] Initialization error:', e);
+    alert('Error loading game: ' + e.message);
+  }
 }
 
 // ===== Dog Selection Screen =====
 function setupDogSelection(): void {
-  if (!dogGrid) return;
+  console.log('[Turbo] Setting up dog selection...');
+  if (!dogGrid) {
+    console.error('[Turbo] dog-grid element not found!');
+    return;
+  }
   
   // Render dog cards
+  console.log(`[Turbo] Rendering ${Object.keys(DOGS).length} dogs`);
   Object.values(DOGS).forEach((dog, index) => {
     const card = document.createElement('div');
     card.className = 'dog-card';
