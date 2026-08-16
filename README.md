@@ -1,0 +1,182 @@
+# Turbo: Lost & Found — Phase 2 Rebuild (v2.0)
+
+A web-based adventure game where you play as a lost dog finding your way home through atmospheric zones inspired by Resident Evil's survival-horror tension, but with heartwarming companionship and hope.
+
+**Tech Stack:** Vite + TypeScript + Canvas 2D (no Three.js dependencies)
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18+ 
+- npm or pnpm
+
+### Installation
+
+```bash
+cd turbo-game-v2
+npm install
+```
+
+### Development Server
+
+```bash
+npm run dev
+# Runs on http://localhost:3094
+```
+
+### Production Build
+
+```bash
+npm run build
+# Output in dist/ directory
+```
+
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
+---
+
+## Project Structure
+
+```
+turbo-game-v2/
+├── turbo-web/
+│   ├── index.html              # Entry point
+│   └── src/
+│       ├── main.ts             # Bootstrap, dog select, game loop
+│       ├── types.ts            # TypeScript interfaces (Dog, Zone, Room, etc.)
+│       ├── data.ts             # Game content: DOGS, ZONES, ITEMS, THREATS
+│       ├── config.ts           # Tunable constants only
+│       └── engine/
+│           ├── state.ts        # Central state manager with pub/sub
+│           ├── audio.ts        # Web Audio API (procedural SFX)
+│           └── render/         # Phase 2: FP/TP/Search renderers
+├── dist/                       # Production build output
+├── package.json
+├── tsconfig.json               # Strict TypeScript config
+└── vite.config.ts              # Vite with @ path alias
+```
+
+---
+
+## Architecture Decisions (v2 vs v1)
+
+### What Went Wrong in Phase 1
+
+| Issue | Root Cause | v2 Solution |
+|-------|-----------|-------------|
+| Double animation loops | FP renderer had internal RAF + main.ts called update() again | Single `requestAnimationFrame` loop in main.ts, all renderers use external `update(delta)` |
+| CONFIG.zones crash | Zones array deleted but state.ts still called `.indexOf()` | Defensive reads with fallback defaults; no direct config mutation |
+| Canvas sizing mismatches | Inconsistent canvas sizes across renderers | Unified size manager: 1280x720 fixed, all renderers report dimensions consistently |
+| Renderer init timing | RAF started before room data ready | Explicit `init(canvas, data)` contract — no implicit state |
+
+### Core Principles
+
+1. **Single Animation Loop** — main.ts owns ONE RAF loop. All renderers receive `update(delta, time)`. No renderer starts its own RAF.
+2. **Explicit Init Contracts** — Every renderer: `(canvas) → init(data) → update() → dispose()`
+3. **State as Source of Truth** — Centralized state manager. Renderers read via getters only.
+4. **No External Dependencies** — Canvas 2D for all rendering (no Three.js), Web Audio API for audio (no Howler).
+5. **TypeScript Strict Mode** — Catch type errors at compile time, prevent runtime crashes.
+
+---
+
+## Game Design Overview
+
+### Playable Dogs (5 Total)
+
+| Dog | Breed | Trait | Effect |
+|-----|-------|-------|--------|
+| Turbo | Alaskan Husky | Speed | +20% movement speed |
+| Watson | German Shepherd | Brave | Easier combat QTEs |
+| Nova | Golden Retriever | Happiness | Slower morale decay, companion bonuses amplified |
+| Walter | English Bulldog | Sniff | Finds items/hints 30% faster |
+| Beaux | Chihuahua | Compact | +1 inventory slot in bandana |
+
+### Zones (6 Chapters + Side Areas)
+
+**Main Story Arc:**
+1. **Suburban Streets** (FP) — Tutorial, traffic threats, first encounters
+2. **Dog Park** (TP) — First companion meeting, open exploration
+3. **Apartment Building** (FP) — Claustrophobic isolation, storm threat
+4. **Animal Shelter** (FP) — Dark midpoint, discovery of lost dog poster
+5. **The Neighborhood** (FP) — Almost home, final stretch
+6. **Home** (FP) — Victory condition, celebration
+
+### Core Mechanics
+
+- **Happiness System** — Decays over time. Comfort items restore it. Game over at 0.
+- **Scent Trail** — Orange particle trail marks your path (fades over time).
+- **Threats** — Mini-games: Timing (traffic), Combat QTE (cats/bullies), Sneak (vacuums/snakes), Comfort (storms/fog).
+- **Companions** — Meet dogs who join you with unique bonuses.
+
+---
+
+## Current Status
+
+### ✅ Sprint 1 Complete (Foundation)
+- [x] TypeScript project setup (strict mode)
+- [x] Core types defined (Dog, Zone, Room, Item, Threat, Companion)
+- [x] Game content: 5 dogs, 6 zones, items, threats
+- [x] State manager with pub/sub events
+- [x] Audio manager (Web Audio API, procedural SFX)
+- [x] Main.ts bootstrap (loading → dog select → playing flow)
+- [x] Single animation loop architecture
+
+### ✅ Sprint 2 Complete (FP Renderer)
+- [x] Base renderer class (`base-renderer.ts`) — abstract `init/update/dispose` contract enforced
+- [x] FP room renderer (`fp-room-renderer.ts`) — top-down Canvas 2D with WASD movement
+- [x] Room geometry from data — walls, floor, features as labeled shapes
+- [x] Fog/atmosphere overlay per zone color
+- [x] Exit navigation between rooms (gold circles + directional arrows)
+- [x] Feature click detection (radius-based hit zones)
+- [x] Player position tracking with directional indicator
+
+### 🚧 Sprint 3 Next: TP Engine & Threats
+- [ ] TP engine (third-person open zone, NPC wander AI, scent trail particles)
+- [ ] Threat manager (QTE mini-games for timing/combat/sneak/comfort)
+- [ ] Manga cutaway overlay for combat encounters
+- [ ] Inventory system (4x4 grid, pickup/use/combine)
+
+---
+
+## Development Notes
+
+### Path Alias (`@/`)
+The `@` alias resolves to `turbo-web/src/`. Use it in imports:
+
+```typescript
+import { State } from '@/engine/state';
+import type { DogId } from '@/types';
+```
+
+### Canvas Sizing
+All canvases are 1280x720. Renderer classes report their dimensions via getters so the unified size manager can handle responsive scaling if needed later.
+
+### Audio System
+Web Audio API used directly — no external libraries. Procedural SFX generated via oscillators for prototype phase. Real audio files can be added in Sprint 5+.
+
+---
+
+## Testing
+
+Unit tests will be added in Sprint 3+ covering:
+- State manager transitions (selectDog, collectItem, modifyHappiness)
+- Data integrity (all zones have valid rooms, all items referenced exist)
+- Renderer contracts (init/update/dispose lifecycle)
+- Input routing (keyboard events dispatch to active renderer)
+
+---
+
+## Credits
+
+**Concept & Design:** Mike  
+**Development:** OpenClaw Agent (Tom)  
+
+---
+
+*Phase 2 rebuild avoids all V1 architecture bugs by starting fresh with proven patterns.*
