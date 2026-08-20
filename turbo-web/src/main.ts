@@ -1,12 +1,24 @@
 /**
- * Main Entry Point — Bootstrap, Dog Select, Game Loop
+ * Main Entry Point — Bootstrap, Dog Select, Zone Routing, Game Loop
+ *
+ * Architecture (v2):
+ * - ONE requestAnimationFrame loop owned here. No renderer starts its own RAF.
+ * - Zone routing by zone.type: 'fp' -> FpRoomRenderer, 'tp' -> TpEngineRenderer
+ * - ThreatManager owns the keyboard while a threat is active; all renderers defer.
+ * - InventoryRenderer toggled with [I]; HUD always rendered.
+ * - State is the single source of truth; renderers read via providers.
  */
 
 import { State } from './engine/state';
 import { Audio } from './engine/audio';
-import { DOGS, ZONES, ITEMS } from './data';
+import { DOGS, ZONES, ITEMS, COMPANIONS, THREATS } from './data';
 import { FpRoomRenderer } from './engine/render/fp-room-renderer';
-import type { DogId } from './types';
+import { TpEngineRenderer } from './engine/render/tp-engine';
+import { ThreatManager } from './engine/threats';
+import { MangaCombatOverlay } from './engine/render/manga-combat';
+import { InventoryRenderer } from './engine/inventory';
+import { HUDRenderer } from './engine/render/hud';
+import type { DogId, Zone, Room, Feature } from './types';
 
 // ===== DOM References =====
 const loadingScreen = document.getElementById('loading-screen');
@@ -16,150 +28,351 @@ const canvasEl = document.getElementById('game-canvas') as HTMLCanvasElement;
 const dogGrid = document.getElementById('dog-grid');
 const startBtn = document.getElementById('start-adventure-btn');
 
-// ===== Active Renderer (single source of truth) =====
-let activeRenderer: FpRoomRenderer | null = null;
+// ===== Renderer instances (single canvas shared by all) =====
+let fpRenderer: FpRoomRenderer | null = null;
+let tpRenderer: TpEngineRenderer | null = null;
+const threatManager = new ThreatManager();
+const mangaOverlay = new MangaCombatOverlay();
+const inventoryRenderer = new InventoryRenderer();
+const hudRenderer = new HUDRenderer();
 
-// ===== Game State Machine =====
-type Screen = 'loading' | 'select_dog' | 'playing';
+let activeRenderer: { update: (d: number, t: number) => void; dispose: () => void } | null = null;
+
+// ===== Game Flow State =====
+type Screen = 'loading' | 'select_dog' | 'playing' | 'game_over' | 'victory';
 let currentScreen: Screen = 'loading';
+let currentZoneId: string | null = null;
+let currentRoomId: string | null = null;
+
+// Input keys owned by main (forwarded to active renderer)
+const keysDown = new Set<string>();
+const onKeyDown = (e: KeyboardEvent) => {
+  keysDown.add(e.key.toLowerCase());
+  if (e.key === ' ') e.preventDefault();
+
+  // Threat active -> ThreatManager owns input, skip game input
+  if (threatManager.isBusy) return;
+
+  // Global toggles
+  const k = e.key.toLowerCase();
+  if (k === 'i') inventoryRenderer.toggle();
+  if (k === ' ' && currentScreen === 'playing') {
+    // SPACE handled by threat manager when active; otherwise ignored
+  }
+};
+const onKeyUp = (e: KeyboardEvent) => {
+  keysDown.delete(e.key.toLowerCase());
+};
+window.addEventListener('keydown', onKeyDown);
+window.addEventListener('keyup', onKeyUp);
 
 // ===== Initialization =====
 function init(): void {
   console.log('[Turbo] Initializing...');
-  
-  try {
-    // Show loading screen
-    showScreen('loading');
-    
-    // AudioContext requires user gesture — defer init until first click
-    window.addEventListener('click', () => Audio.init(), { once: true });
-    
-    // Simulate asset loading delay
-    setTimeout(() => {
-      console.log('[Turbo] Assets loaded, switching to dog select');
-      setupDogSelection();
-      showScreen('select_dog');
-    }, 1000);
-  } catch (e) {
-    console.error('[Turbo] Initialization error:', e);
-    alert('Error loading game: ' + e.message);
+
+  // Initialize overlay renderers once
+  if (canvasEl) {
+    threatManager.init(canvasEl);
+    mangaOverlay.init(canvasEl);
+    inventoryRenderer.init(canvasEl);
+    hudRenderer.init(canvasEl);
   }
+
+  // Wire inventory to State
+  inventoryRenderer.getSlots = () => State.getState().inventory as any;
+  inventoryRenderer.getItem = (id) => ITEMS[id];
+  inventoryRenderer.onUseItem = (itemId) => {
+    if (State.getState().inventory.find(s => s.item === itemId)) {
+      State.useItem(itemId);
+      Audio.playSfx('pickup');
+    }
+  };
+
+  // Wire HUD to State
+  hudRenderer.getDogName = () => DOGS[State.currentDog ?? '']?.name ?? '';
+  hudRenderer.getHappiness = () => State.happiness;
+  hudRenderer.getZoneName = () => ZONES[currentZoneId ?? '']?.name ?? '';
+  hudRenderer.getItemCount = () =>
+    (State.getState().inventory as Array<{ item: string | null; count: number }>).reduce((n, s) => n + (s.item ? s.count : 0), 0);
+  hudRenderer.getCompanionName = () => {
+    const id = State.activeCompanion;
+    return id ? COMPANIONS[id]?.name ?? null : null;
+  };
+  hudRenderer.isThreatActive = () => threatManager.isBusy;
+
+  // Wire threat manager to State + manga
+  threatManager.onResolve = (threatName, success) => {
+    const threat = Object.values(THREATS).find(t => t.name === threatName);
+    State.resolveThreat(threatName, success);
+    Audio.playSfx(success ? 'bark' : 'select');
+
+    // Manga cutaway for combat threats
+    if (threat?.type === 'combat' && canvasEl) {
+      mangaOverlay.start(threat, success);
+      mangaOverlay.onDone = () => { /* manga finished, nothing else to do */ };
+    }
+  };
+
+  // Audio context needs user gesture
+  window.addEventListener('click', () => Audio.init(), { once: true });
+
+  // Simulate asset loading
+  setTimeout(() => {
+    setupDogSelection();
+    showScreen('select_dog');
+  }, 800);
 }
 
-// ===== Dog Selection Screen =====
+// ===== Dog Selection =====
 function setupDogSelection(): void {
-  console.log('[Turbo] Setting up dog selection...');
-  if (!dogGrid) {
-    console.error('[Turbo] dog-grid element not found!');
-    return;
-  }
-  
-  // Render dog cards
-  console.log(`[Turbo] Rendering ${Object.keys(DOGS).length} dogs`);
-  Object.values(DOGS).forEach((dog, index) => {
+  if (!dogGrid) return;
+  Object.values(DOGS).forEach((dog) => {
     const card = document.createElement('div');
     card.className = 'dog-card';
     card.dataset.dogId = dog.id;
-    
     card.innerHTML = `
       <h2>${dog.name}</h2>
       <p class="breed">${dog.breed}</p>
       <p class="trait">Trait: ${dog.trait}</p>
       <p class="trait-desc">${dog.traitDesc}</p>
     `;
-    
     card.addEventListener('click', () => selectDog(dog.id, card));
     dogGrid.appendChild(card);
   });
-  
-  // Start button handler
-  if (startBtn) {
-    startBtn.addEventListener('click', startAdventure);
-  }
+  startBtn?.addEventListener('click', startAdventure);
 }
 
 function selectDog(dogId: DogId, selectedCard: HTMLElement): void {
-  console.log(`[Turbo] Selected dog: ${dogId}`);
-  
   Audio.playSfx('select');
-  
-  // Save the selection into state
   State.selectDog(dogId);
-  
-  // Highlight selected card
-  document.querySelectorAll('.dog-card').forEach(card => {
-    card.classList.remove('selected');
-  });
+  document.querySelectorAll('.dog-card').forEach(c => c.classList.remove('selected'));
   selectedCard.classList.add('selected');
-  
-  // Show start button
-  if (startBtn) {
-    startBtn.classList.remove('hidden');
-  }
+  startBtn?.classList.remove('hidden');
 }
 
+// ===== Game Start =====
 function startAdventure(): void {
-  console.log('[Turbo] Starting adventure...');
-  
   Audio.playSfx('bark');
-  
-  // Get selected dog from State
-  const currentDog = State.currentDog;
-  if (!currentDog) {
-    console.error('[Turbo] No dog selected!');
+  showScreen('playing');
+  enterZone('suburban_streets');
+  startGameLoop();
+}
+
+// ===== Zone / Room Routing =====
+function enterZone(zoneId: string): void {
+  const zone = ZONES[zoneId];
+  if (!zone) {
+    console.error(`[Turbo] Unknown zone: ${zoneId}`);
     return;
   }
-  
-  // Initialize FP renderer for first room
-  if (canvasEl) {
-    activeRenderer = new FpRoomRenderer();
-    const zoneId = 'suburban_streets';
-    const roomId = 'start';
-    
-    const zone = ZONES[zoneId];
-    const roomData = zone?.rooms?.find(r => r.id === roomId);
-    
-    if (roomData) {
-      try {
-        activeRenderer.init(canvasEl, roomData);
-        console.log(`[Turbo] Initialized FP renderer for room: ${roomData.name}`);
-      } catch (e) {
-        console.error('[Turbo] Failed to initialize renderer:', e);
-        return;
-      }
-    } else {
-      console.error('[Turbo] No valid room data found');
-      return;
+
+  disposeActiveRenderer();
+  currentZoneId = zoneId;
+
+  // Stop music, start new track
+  Audio.stopMusic();
+  Audio.playMusic(zone.music);
+
+  // Enter the entrance room (or first room)
+  const entranceRoom = zone.rooms?.find(r => r.isEntrance) ?? zone.rooms?.[0];
+
+  if (zone.type === 'fp') {
+    const firstRoomId = entranceRoom?.id ?? zone.rooms?.[0]?.id;
+    if (!firstRoomId) { console.error('[Turbo] FP zone has no rooms:', zone.id); return; }
+    currentRoomId = firstRoomId;
+    const room = zone.rooms?.find(r => r.id === currentRoomId);
+    if (room && canvasEl) {
+      fpRenderer = new FpRoomRenderer();
+      fpRenderer.init(canvasEl, room);
+      wireFpRenderer(fpRenderer, zone);
+      activeRenderer = fpRenderer;
+    }
+  } else if (zone.type === 'tp') {
+    currentRoomId = null;
+    if (canvasEl) {
+      // Pass player color from selected dog
+      const dog = DOGS[State.currentDog ?? ''];
+      const zoneWithColors = { ...zone, playerColor: dog?.colors?.fur?.[0] ?? '#ffffff', playerAccent: dog?.colors?.accent ?? '#4a9eff' };
+      tpRenderer = new TpEngineRenderer();
+      tpRenderer.init(canvasEl, zoneWithColors);
+      wireTpRenderer(tpRenderer, zone);
+      activeRenderer = tpRenderer;
+    }
+  } else {
+    // 'search' type — not implemented in v2 yet; fall back to fp if rooms exist
+    if (zone.rooms && canvasEl) {
+      currentRoomId = zone.rooms[0].id;
+      fpRenderer = new FpRoomRenderer();
+      const room = zone.rooms[0];
+      fpRenderer.init(canvasEl, room);
+      wireFpRenderer(fpRenderer, zone);
+      activeRenderer = fpRenderer;
     }
   }
-  
-  // Transition to game view
-  showScreen('playing');
-  
-  // Start the game loop
-  startGameLoop();
+
+  State.enterZone(zoneId);
+  console.log(`[Turbo] Entered zone: ${zone.name} (type=${zone.type})`);
+}
+
+function enterRoom(roomId: string): void {
+  const zone = ZONES[currentZoneId ?? ''];
+  if (!zone || zone.type !== 'fp') return;
+  const room = zone.rooms?.find(r => r.id === roomId);
+  if (!room) return;
+
+  // Dispose old FP renderer
+  if (fpRenderer) { fpRenderer.dispose(); fpRenderer = null; }
+
+  currentRoomId = roomId;
+  if (canvasEl) {
+    fpRenderer = new FpRoomRenderer();
+    fpRenderer.init(canvasEl, room);
+    wireFpRenderer(fpRenderer, zone);
+    activeRenderer = fpRenderer;
+  }
+  State.enterRoom(roomId);
+}
+
+function disposeActiveRenderer(): void {
+  if (fpRenderer) { fpRenderer.dispose(); fpRenderer = null; }
+  if (tpRenderer) { tpRenderer.dispose(); tpRenderer = null; }
+  activeRenderer = null;
+}
+
+// ===== FP Renderer Wiring =====
+function wireFpRenderer(renderer: FpRoomRenderer, zone: Zone): void {
+  // Feature interaction: click a feature in the room
+  renderer.onFeatureClick = (featureId: string) => {
+    // featureId format: `${roomId}_${index}`
+    const parts = featureId.split('_');
+    const index = parseInt(parts[parts.length - 1], 10);
+    const room = zone.rooms?.find(r => r.id === currentRoomId);
+    const feature = room?.features?.[index];
+    if (!feature) return;
+    handleFeature(feature, zone);
+  };
+
+  // Exit navigation
+  renderer.onExitClick = (exitRoomId: string) => {
+    const exitRoom = zone.rooms?.find(r => r.id === exitRoomId);
+    if (!exitRoom) return;
+
+    if (exitRoom.entranceZone) {
+      // Portal to another zone
+      enterZone(exitRoom.entranceZone);
+    } else {
+      enterRoom(exitRoomId);
+    }
+  };
+}
+
+// ===== TP Renderer Wiring =====
+function wireTpRenderer(renderer: TpEngineRenderer, zone: Zone): void {
+  renderer.onFeatureInteract = (feature: Feature) => {
+    handleFeature(feature, zone);
+  };
+
+  renderer.onNpcInteract = (npc) => {
+    // Find matching companion and meet them
+    const companionId = Object.keys(COMPANIONS).find(id => COMPANIONS[id].name === npc.name);
+    if (companionId) {
+      State.meetCompanion(companionId);
+      Audio.playSfx('bark');
+    }
+  };
+
+  renderer.onReturnGate = (zoneId: string) => {
+    if (zoneId) enterZone(zoneId);
+  };
+}
+
+// ===== Feature Handling (shared FP + TP) =====
+function handleFeature(feature: { type: string; item?: string }, zone: Zone): void {
+  const ftype = feature.type;
+
+  // Threat triggers
+  const threatMap: Record<string, string> = {
+    traffic: 'Traffic',
+    cat: 'Mean Cat',
+    bully: 'Bully Dog',
+    storm: 'Thunderstorm',
+    vacuum: 'Vacuum Monster',
+  };
+  const threatName = threatMap[ftype];
+  if (threatName) {
+    const threat = Object.values(THREATS).find(t => t.name === threatName);
+    if (threat) {
+      Audio.playSfx('bark');
+      threatManager.start(threat);
+    }
+    return;
+  }
+
+  // Item pickup
+  if (feature.item && ITEMS[feature.item]) {
+    if (State.collectItem(feature.item)) {
+      Audio.playSfx('pickup');
+    }
+    return;
+  }
+
+  // Home / celebration -> win
+  if (ftype === 'home' || ftype === 'celebration') {
+    State.gameWin();
+    showScreen('victory');
+    return;
+  }
+
+  // Companion
+  if (ftype === 'dog_friend') {
+    // Find a companion associated with this zone
+    const companionId = zone.companions?.[0] ?? Object.keys(COMPANIONS)[0];
+    State.meetCompanion(companionId);
+    Audio.playSfx('bark');
+    return;
+  }
+
+  // Hint / clue -> unlock hint
+  if (ftype === 'hint' || ftype === 'tree_clue') {
+    State.unlockHint(zone.id);
+    Audio.playSfx('select');
+    return;
+  }
+
+  // Door (locked) -> needs key
+  if (ftype === 'door') {
+    const hasKey = (State.getState().inventory as Array<{ item: string | null; count: number }>).some(s => s.item === 'key');
+    if (hasKey) {
+      State.useItem('key');
+      Audio.playSfx('select');
+    } else {
+      Audio.playSfx('select');
+    }
+    return;
+  }
+
+  // Default: play a generic sound
+  Audio.playSfx('select');
 }
 
 // ===== Screen Management =====
 function showScreen(screen: Screen): void {
   currentScreen = screen;
-  
-  // Hide all screens
+
+  // For game_over / victory, keep the game canvas visible behind a message
+  if (screen === 'game_over' || screen === 'victory') {
+    gameViewContainer?.classList.remove('hidden');
+    return;
+  }
+
   loadingScreen?.classList.add('hidden');
   dogSelectScreen?.classList.add('hidden');
   gameViewContainer?.classList.add('hidden');
-  
-  // Show target screen
+
   switch (screen) {
-    case 'loading':
-      loadingScreen?.classList.remove('hidden');
-      break;
-    case 'select_dog':
-      dogSelectScreen?.classList.remove('hidden');
-      break;
-    case 'playing':
-      gameViewContainer?.classList.remove('hidden');
-      break;
+    case 'loading': loadingScreen?.classList.remove('hidden'); break;
+    case 'select_dog': dogSelectScreen?.classList.remove('hidden'); break;
+    case 'playing': gameViewContainer?.classList.remove('hidden'); break;
   }
 }
 
@@ -167,33 +380,54 @@ function showScreen(screen: Screen): void {
 let lastTime = performance.now();
 
 function startGameLoop(): void {
-  console.log('[Turbo] Starting game loop...');
-  
   function loop(currentTime: number): void {
-    const deltaTime = (currentTime - lastTime) / 1000; // seconds
+    const delta = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
-    
-    // Update game state and renderer
-    update(deltaTime);
-    
-    // Request next frame
+
+    if (currentScreen === 'playing' || currentScreen === 'game_over' || currentScreen === 'victory') {
+      update(delta, currentTime);
+    }
+
     requestAnimationFrame(loop);
   }
-  
   requestAnimationFrame(loop);
 }
 
-// ===== Game Logic =====
-function update(delta: number): void {
-  // Update happiness decay
-  if (State.happiness > 0) {
-    const decay = 0.5 * delta;
-    State.modifyHappiness(-decay);
+function update(delta: number, time: number): void {
+  if (currentScreen !== 'playing') return;
+
+  // Happiness decay (only when not in a threat)
+  if (!threatManager.isBusy && State.happiness > 0) {
+    State.modifyHappiness(-0.5 * delta);
   }
-  
-  // Delegate update to active renderer (it handles its own rendering internally)
-  if (activeRenderer?.isReady) {
-    activeRenderer.update(delta, performance.now());
+
+  // Check game over
+  if (State.happiness <= 0 && currentScreen === 'playing') {
+    State.gameOver();
+    showScreen('game_over');
+    return;
+  }
+
+  // Update threat manager first (it owns input when active)
+  threatManager.update(delta, time);
+
+  // Update manga overlay
+  mangaOverlay.update(delta, time);
+
+  // Update inventory (hover tracking)
+  inventoryRenderer.update(delta, time);
+
+  // Update active zone renderer only when no threat/manga is playing
+  if (!threatManager.isBusy && !mangaOverlay.isPlaying) {
+    activeRenderer?.update(delta, time);
+  }
+
+  // HUD always renders
+  hudRenderer.update(delta, time);
+
+  // Inventory renders on top when visible
+  if (inventoryRenderer.visible) {
+    inventoryRenderer.update(0, time); // just render
   }
 }
 

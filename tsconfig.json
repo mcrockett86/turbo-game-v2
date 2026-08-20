@@ -16,7 +16,7 @@
     "useDefineForClassFields": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["turbo-web/src/*"]
     },
     "outDir": "./dist",
     "rootDir": "./turbo-web/src"

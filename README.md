@@ -136,11 +136,24 @@ turbo-game-v2/
 - [x] Feature click detection (radius-based hit zones)
 - [x] Player position tracking with directional indicator
 
-### 🚧 Sprint 3 Next: TP Engine & Threats
-- [ ] TP engine (third-person open zone, NPC wander AI, scent trail particles)
-- [ ] Threat manager (QTE mini-games for timing/combat/sneak/comfort)
-- [ ] Manga cutaway overlay for combat encounters
-- [ ] Inventory system (4x4 grid, pickup/use/combine)
+### ✅ Sprint 3 Complete: TP Engine, Threats, Manga Combat, Inventory
+- [x] TP engine renderer (`tp-engine.ts`) — top-down Canvas 2D, dog model, NPC wander AI, obstacle collision, scent trail particles, feature/NPC interaction, return gates
+- [x] Threat manager (`threats.ts`) — 4 mini-game types: timing (gap crossing), combat (rhythm QTE), sneak (detection meter), comfort (hold-to-shelter); fully owns keyboard while active
+- [x] Manga cutaway combat overlay (`manga-combat.ts`) — 3-panel comic with speed lines, SFX burst, outcome panel
+- [x] Inventory renderer (`inventory.ts`) — 4×4 grid, hover/select, click-to-use, item info sidebar, [I] toggle
+- [x] HUD renderer (`hud.ts`) — happiness bar, zone name, item count, companion, threat warning border
+- [x] Full main.ts rewrite — zone routing by type (fp/tp/search), threat triggers from features, manga integration, win/lose flow
+- [x] All 40 threats in data are playable (5 core + 35 zone-specific)
+- [x] Build compiles cleanly, data integrity checks pass
+
+### 🚧 Sprint 4 Next: Polish & Content Wiring
+- [ ] Companion panel ([C] toggle) + companion follow rendering in TP view
+- [ ] Hint/route panel ([H] toggle) + progressive unlock wiring
+- [ ] Zone transition effects (fade/wipe/zoom/slide) between zones
+- [ ] Zone-specific threat mapping (currently only 5 core threat types trigger; wire the other 35)
+- [ ] Game over / victory screens with score (time, items, companions, threats)
+- [ ] Save/load persistence (localStorage)
+- [ ] Playtest + balance pass
 
 ### ✅ Sprint 2.5: Full World Port (v2.1)
 - [x] Ported all 13 v1 side zones (lake, pet_store, dog_show, forest, beach, mountain, garden, library, market, cave, waterfall, park_secret)
