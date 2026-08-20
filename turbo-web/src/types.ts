@@ -72,6 +72,7 @@ export interface Zone {
   features?: Feature[]; // Both types
   music: string;
   hint: string;
+  companions?: string[]; // Companion IDs available in this zone
   returnZone?: string;
   skyColor?: string;
   groundColor?: string;
@@ -134,7 +135,10 @@ export type FeatureType =
   | 'food' | 'hint' | 'door' | 'cat' | 'dog_friend' | 'home'
   | 'water_bowl' | 'fire_hydrant' | 'scent_post' | 'treasure'
   | 'return_gate' | 'tv' | 'person' | 'fountain' | 'bridge'
-  | 'cave_entrance' | 'secret_passage';
+  | 'cave_entrance' | 'secret_passage'
+  | 'traffic' | 'choice' | 'celebration' | 'pet_shop' | 'dog_show'
+  | 'water' | 'lure' | 'treasure_chest' | 'music_box' | 'mailbox'
+  | 'trap' | 'companion_trap' | 'locked_door';
 
 export interface Feature {
   type: FeatureType;
@@ -149,7 +153,7 @@ export interface Feature {
 export interface Item {
   name: string;
   desc: string;
-  category: 'comfort' | 'clue' | 'key' | 'collectible';
+  category: 'comfort' | 'clue' | 'key' | 'collectible' | 'food' | 'utility' | 'story' | 'crafting' | 'quest' | 'rare';
   stackable?: boolean;
   maxStack?: number;
 }

@@ -142,6 +142,15 @@ turbo-game-v2/
 - [ ] Manga cutaway overlay for combat encounters
 - [ ] Inventory system (4x4 grid, pickup/use/combine)
 
+### ✅ Sprint 2.5: Full World Port (v2.1)
+- [x] Ported all 13 v1 side zones (lake, pet_store, dog_show, forest, beach, mountain, garden, library, market, cave, waterfall, park_secret)
+- [x] Ported 15 companions (4 core + 11 zone-specific)
+- [x] Ported 69 items (categorized: comfort/clue/key/collectible/food/utility/story/crafting/quest/rare)
+- [x] Ported 40 threats (5 core + 35 zone-specific)
+- [x] World connectivity restored — suburban streets has entrance gates to all TP side zones
+- [x] Data integrity checks pass (scripts/check-data-integrity.ts)
+- [x] Build compiles cleanly (vite build)
+
 ---
 
 ## Development Notes
