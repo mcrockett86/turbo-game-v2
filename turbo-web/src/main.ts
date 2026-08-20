@@ -155,6 +155,9 @@ function startAdventure(): void {
   Audio.playSfx('bark');
   showScreen('playing');
   enterZone('suburban_streets');
+  if (!activeRenderer) {
+    console.error('[Turbo] startAdventure: no active renderer after enterZone — game loop will be idle');
+  }
   startGameLoop();
 }
 
@@ -169,9 +172,13 @@ function enterZone(zoneId: string): void {
   disposeActiveRenderer();
   currentZoneId = zoneId;
 
-  // Stop music, start new track
-  Audio.stopMusic();
-  Audio.playMusic(zone.music);
+  // Audio is best-effort — never let it break game flow
+  try {
+    Audio.stopMusic();
+    Audio.playMusic(zone.music);
+  } catch (e) {
+    console.warn('[Turbo] Zone audio failed:', (e as Error).message);
+  }
 
   // Enter the entrance room (or first room)
   const entranceRoom = zone.rooms?.find(r => r.isEntrance) ?? zone.rooms?.[0];
@@ -180,12 +187,16 @@ function enterZone(zoneId: string): void {
     const firstRoomId = entranceRoom?.id ?? zone.rooms?.[0]?.id;
     if (!firstRoomId) { console.error('[Turbo] FP zone has no rooms:', zone.id); return; }
     currentRoomId = firstRoomId;
-    const room = zone.rooms?.find(r => r.id === currentRoomId);
-    if (room && canvasEl) {
+    const room = zone.rooms?.find(r => r.id === firstRoomId);
+    if (!room) { console.error('[Turbo] Room not found:', firstRoomId); return; }
+    if (canvasEl) {
       fpRenderer = new FpRoomRenderer();
       fpRenderer.init(canvasEl, room);
       wireFpRenderer(fpRenderer, zone);
       activeRenderer = fpRenderer;
+      console.log(`[Turbo] FP renderer ready for room: ${room.name}`);
+    } else {
+      console.error('[Turbo] No canvas element for FP renderer');
     }
   } else if (zone.type === 'tp') {
     currentRoomId = null;

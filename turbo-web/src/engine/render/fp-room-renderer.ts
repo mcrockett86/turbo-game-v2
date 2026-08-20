@@ -34,20 +34,21 @@ export class FpRoomRenderer extends BaseRenderer {
   onFeatureClick?: (featureId: string) => void;
   onExitClick?: (roomId: string) => void;
   
-  // Setup listeners for keyboard input
+  // Setup listeners for keyboard input + mouse clicks
   private boundKeyDown = this.onKeyDown.bind(this);
   private boundKeyUp = this.onKeyUp.bind(this);
-  
+  private boundMouseDown = this.onMouseDown.bind(this);
+
   protected onInit(data?: unknown): void {
     if (!data || !this.canvas || !this.ctx) return;
-    
+
     const roomData = data as Room;
     this.room = roomData;
-    
+
     // Initialize player position to center of room
     this.playerX = roomData.w / 2;
     this.playerY = roomData.d / 2;
-    
+
     // Parse features from room data
     if (roomData.features) {
       roomData.features.forEach((feature, index) => {
@@ -55,15 +56,16 @@ export class FpRoomRenderer extends BaseRenderer {
         this.features.set(featureId, { feature, state: 'active' });
       });
     }
-    
+
     // Parse exits from room data
     if (roomData.exits) {
       this.parseExits(roomData);
     }
-    
-    // Setup keyboard listeners
+
+    // Setup keyboard + mouse listeners
     window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('keyup', this.boundKeyUp);
+    this.canvas.addEventListener('mousedown', this.boundMouseDown);
   }
   
   private parseExits(room: Room): void {
@@ -159,42 +161,8 @@ export class FpRoomRenderer extends BaseRenderer {
   }
   
   private checkFeatureClicks(): void {
-    if (!this.ctx || !this.canvas) return;
-    
-    // Convert screen coordinates to room coordinates for click detection
-    const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
-    
-    // Room is centered on canvas
-    const offsetX = (this.canvas.width - this.room!.w) / 2;
-    const offsetY = (this.canvas.height - this.room!.d) / 2;
-    
-    // Check feature click zones (radius-based hit detection)
-    this.features.forEach((data, featureId) => {
-      const { feature } = data;
-      
-      // Calculate screen position of feature center
-      const featureScreenX = offsetX + feature.x;
-      const featureScreenY = offsetY + feature.y;
-      
-      // Hit radius (larger than visual for easier clicking)
-      const hitRadius = 25;
-      
-      // This would be checked against mouse click coordinates in a real implementation
-      // For now, we'll just store the detection logic
-    });
-    
-    // Check exit click zones
-    this.exits.forEach(exit => {
-      const exitScreenX = offsetX + exit.x;
-      const exitScreenY = offsetY + exit.y;
-      
-      // Exit hit radius (larger for easier clicking)
-      const exitHitRadius = 30;
-      
-      // Same as above — would check against mouse click coordinates
-    });
+    // Click detection is handled by onMouseDown; this method is retained
+    // for future proximity-based interaction (e.g. auto-interact on touch).
   }
   
   protected onRender(): void {
@@ -208,141 +176,181 @@ export class FpRoomRenderer extends BaseRenderer {
   }
   
   private renderRoom(): void {
-    if (!this.ctx || !this.room) return;
-    
-    const offsetX = (this.canvas!.width - this.room.w) / 2;
-    const offsetY = (this.canvas!.height - this.room.d) / 2;
-    
+    if (!this.ctx || !this.room || !this.canvas) return;
+    const ctx = this.ctx;
+    const room = this.room;
+    const canvas = this.canvas;
+
+    // Scale room to fill ~80% of canvas (maintain aspect ratio)
+    const scale = this.roomScale();
+    const offsetX = (canvas.width - room.w * scale) / 2;
+    const offsetY = (canvas.height - room.d * scale) / 2;
+
     // Draw floor
-    this.ctx.fillStyle = this.room.color;
-    this.ctx.fillRect(offsetX, offsetY, this.room.w, this.room.d);
-    
+    ctx.fillStyle = room.color;
+    ctx.fillRect(offsetX, offsetY, room.w * scale, room.d * scale);
+
     // Draw walls (thicker border around room)
     const wallThickness = 8;
-    this.ctx.strokeStyle = '#2a2a3e';
-    this.ctx.lineWidth = wallThickness;
-    this.ctx.strokeRect(offsetX - wallThickness / 2, offsetY - wallThickness / 2, 
-                        this.room.w + wallThickness, this.room.d + wallThickness);
-    
+    ctx.strokeStyle = '#2a2a3e';
+    ctx.lineWidth = wallThickness;
+    ctx.strokeRect(offsetX - wallThickness / 2, offsetY - wallThickness / 2,
+                    room.w * scale + wallThickness, room.d * scale + wallThickness);
+
     // Draw room name at top
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.font = 'bold 16px sans-serif';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText(this.room.name, this.canvas.width / 2, offsetY - 15);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(room.name, canvas.width / 2, offsetY - 15);
+  }
+
+  /** Compute the uniform scale factor that fits the room into ~80% of the canvas. */
+  private roomScale(): number {
+    if (!this.canvas || !this.room) return 1;
+    const maxW = this.canvas.width * 0.8;
+    const maxH = this.canvas.height * 0.8;
+    return Math.min(maxW / this.room.w, maxH / this.room.d);
+  }
+
+  /** Convert a world (room) coordinate to canvas pixel coordinate. */
+  private toCanvasX(wx: number): number {
+    if (!this.canvas || !this.room) return wx;
+    const scale = this.roomScale();
+    const offsetX = (this.canvas.width - this.room.w * scale) / 2;
+    return offsetX + wx * scale;
+  }
+
+  private toCanvasY(wy: number): number {
+    if (!this.canvas || !this.room) return wy;
+    const scale = this.roomScale();
+    const offsetY = (this.canvas.height - this.room.d * scale) / 2;
+    return offsetY + wy * scale;
+  }
+
+  /** Convert a canvas pixel coordinate to world (room) coordinate. */
+  private toWorldX(cx: number): number {
+    if (!this.canvas || !this.room) return cx;
+    const scale = this.roomScale();
+    const offsetX = (this.canvas.width - this.room.w * scale) / 2;
+    return (cx - offsetX) / scale;
+  }
+
+  private toWorldY(cy: number): number {
+    if (!this.canvas || !this.room) return cy;
+    const scale = this.roomScale();
+    const offsetY = (this.canvas.height - this.room.d * scale) / 2;
+    return (cy - offsetY) / scale;
   }
   
   private renderFeatures(): void {
     if (!this.ctx || !this.room) return;
-    
-    const offsetX = (this.canvas!.width - this.room.w) / 2;
-    const offsetY = (this.canvas!.height - this.room.d) / 2;
-    
+    const ctx = this.ctx;
+
     this.features.forEach((data, featureId) => {
       const { feature } = data;
-      
-      // Calculate screen position
-      const x = offsetX + feature.x;
-      const y = offsetY + feature.y;
-      
+
+      // Calculate screen position using world->canvas transform
+      const x = this.toCanvasX(feature.x);
+      const y = this.toCanvasY(feature.y);
+      const scale = this.roomScale();
+
       // Draw feature shape (simplified as rectangle for now)
-      const width = feature.w || 30;
-      const height = feature.h || 30;
-      
-      this.ctx.fillStyle = this.getFeatureColor(feature.type);
-      this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
-      
+      const width = (feature.w || 30) * scale;
+      const height = (feature.h || 30) * scale;
+
+      ctx.fillStyle = this.getFeatureColor(feature.type);
+      ctx.fillRect(x - width / 2, y - height / 2, width, height);
+
       // Draw label above feature
-      this.ctx.fillStyle = '#ffffff';
-      this.ctx.font = '12px sans-serif';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(feature.label, x, y - height / 2 - 5);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(feature.label, x, y - height / 2 - 5);
     });
   }
-  
+
   private renderExits(): void {
     if (!this.ctx || !this.room) return;
-    
-    const offsetX = (this.canvas!.width - this.room.w) / 2;
-    const offsetY = (this.canvas!.height - this.room.d) / 2;
-    
+    const ctx = this.ctx;
+
     this.exits.forEach(exit => {
-      const x = offsetX + exit.x;
-      const y = offsetY + exit.y;
-      
+      const x = this.toCanvasX(exit.x);
+      const y = this.toCanvasY(exit.y);
+      const scale = this.roomScale();
+      const r = 12 * scale;
+
       // Draw door marker
-      this.ctx.fillStyle = '#d4a017'; // Gold color for exits
-      this.ctx.beginPath();
-      this.ctx.arc(x, y, 12, 0, Math.PI * 2);
-      this.ctx.fill();
-      
+      ctx.fillStyle = '#d4a017'; // Gold color for exits
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+
       // Draw arrow pointing to exit direction
-      this.ctx.strokeStyle = '#ffffff';
-      this.ctx.lineWidth = 3;
-      this.ctx.beginPath();
-      
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+
       switch (exit.wallSide) {
         case 'north':
-          this.ctx.moveTo(x, y + 8);
-          this.ctx.lineTo(x, y - 8);
-          this.ctx.lineTo(x - 5, y - 2);
+          ctx.moveTo(x, y + 8 * scale);
+          ctx.lineTo(x, y - 8 * scale);
+          ctx.lineTo(x - 5 * scale, y - 2 * scale);
           break;
         case 'south':
-          this.ctx.moveTo(x, y - 8);
-          this.ctx.lineTo(x, y + 8);
-          this.ctx.lineTo(x + 5, y + 2);
+          ctx.moveTo(x, y - 8 * scale);
+          ctx.lineTo(x, y + 8 * scale);
+          ctx.lineTo(x + 5 * scale, y + 2 * scale);
           break;
         case 'east':
-          this.ctx.moveTo(x - 8, y);
-          this.ctx.lineTo(x + 8, y);
-          this.ctx.lineTo(x + 2, y - 5);
+          ctx.moveTo(x - 8 * scale, y);
+          ctx.lineTo(x + 8 * scale, y);
+          ctx.lineTo(x + 2 * scale, y - 5 * scale);
           break;
         case 'west':
-          this.ctx.moveTo(x + 8, y);
-          this.ctx.lineTo(x - 8, y);
-          this.ctx.lineTo(x - 2, y + 5);
+          ctx.moveTo(x + 8 * scale, y);
+          ctx.lineTo(x - 8 * scale, y);
+          ctx.lineTo(x - 2 * scale, y + 5 * scale);
           break;
       }
-      
-      this.ctx.stroke();
-      
+
+      ctx.stroke();
+
       // Draw exit room name below arrow
-      this.ctx.fillStyle = '#ffffff';
-      this.ctx.font = '10px sans-serif';
-      this.ctx.textAlign = 'center';
-      this.ctx.fillText(exit.roomId, x, y + 25);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(exit.roomId, x, y + 25 * scale);
     });
   }
-  
+
   private renderPlayer(): void {
-    if (!this.ctx) return;
-    
-    const offsetX = (this.canvas!.width - this.room!.w) / 2;
-    const offsetY = (this.canvas!.height - this.room!.d) / 2;
-    
-    // Draw player as a circle with directional indicator
-    const playerScreenX = offsetX + this.playerX;
-    const playerScreenY = offsetY + this.playerY;
-    
+    if (!this.ctx || !this.room) return;
+    const ctx = this.ctx;
+
+    const playerScreenX = this.toCanvasX(this.playerX);
+    const playerScreenY = this.toCanvasY(this.playerY);
+    const scale = this.roomScale();
+
     // Player body
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.beginPath();
-    this.ctx.arc(playerScreenX, playerScreenY, 10, 0, Math.PI * 2);
-    this.ctx.fill();
-    
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(playerScreenX, playerScreenY, 10 * scale, 0, Math.PI * 2);
+    ctx.fill();
+
     // Direction indicator (small triangle pointing up)
-    this.ctx.fillStyle = '#4a9eff';
-    this.ctx.beginPath();
-    this.ctx.moveTo(playerScreenX, playerScreenY - 15);
-    this.ctx.lineTo(playerScreenX - 6, playerScreenY - 5);
-    this.ctx.lineTo(playerScreenX + 6, playerScreenY - 5);
-    this.ctx.closePath();
-    this.ctx.fill();
-    
+    ctx.fillStyle = '#4a9eff';
+    ctx.beginPath();
+    ctx.moveTo(playerScreenX, playerScreenY - 15 * scale);
+    ctx.lineTo(playerScreenX - 6 * scale, playerScreenY - 5 * scale);
+    ctx.lineTo(playerScreenX + 6 * scale, playerScreenY - 5 * scale);
+    ctx.closePath();
+    ctx.fill();
+
     // Player name label
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.font = '10px sans-serif';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('You', playerScreenX, playerScreenY + 25);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('You', playerScreenX, playerScreenY + 25 * scale);
   }
   
   private renderFog(): void {
@@ -387,15 +395,57 @@ export class FpRoomRenderer extends BaseRenderer {
   private onKeyDown(event: KeyboardEvent): void {
     this.keysPressed.add(event.key.toLowerCase());
   }
-  
+
   private onKeyUp(event: KeyboardEvent): void {
     this.keysPressed.delete(event.key.toLowerCase());
   }
-  
+
+  // Mouse click handler — detect clicks on features and exits
+  private onMouseDown(event: MouseEvent): void {
+    if (!this.canvas || !this.room) return;
+
+    // Convert screen coordinates to canvas coordinates
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    const canvasX = (event.clientX - rect.left) * scaleX;
+    const canvasY = (event.clientY - rect.top) * scaleY;
+
+    // Convert canvas coordinates to world (room) coordinates
+    const roomX = this.toWorldX(canvasX);
+    const roomY = this.toWorldY(canvasY);
+
+    // Check feature clicks (radius-based hit detection in world units)
+    for (const [featureId, data] of this.features) {
+      if (data.state !== 'active') continue;
+      const { feature } = data;
+      const dx = roomX - feature.x;
+      const dy = roomY - feature.y;
+      const hitRadius = Math.max(feature.w, feature.h, 20) / 2 + 10;
+      if (dx * dx + dy * dy <= hitRadius * hitRadius) {
+        this.onFeatureClick?.(featureId);
+        data.state = 'completed';
+        return;
+      }
+    }
+
+    // Check exit clicks
+    for (const exit of this.exits) {
+      const dx = roomX - exit.x;
+      const dy = roomY - exit.y;
+      const hitRadius = 30;
+      if (dx * dx + dy * dy <= hitRadius * hitRadius) {
+        this.onExitClick?.(exit.roomId);
+        return;
+      }
+    }
+  }
+
   protected onDestroy(): void {
     window.removeEventListener('keydown', this.boundKeyDown);
     window.removeEventListener('keyup', this.boundKeyUp);
-    
+    this.canvas?.removeEventListener('mousedown', this.boundMouseDown);
+
     this.room = null;
     this.features.clear();
     this.exits = [];
