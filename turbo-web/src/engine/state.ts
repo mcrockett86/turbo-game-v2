@@ -39,7 +39,7 @@ export class StateManager {
   
   // ===== Selectors (Read-only access) =====
   
-  getState(): Readonly<GameStateData> {
+  getState(): GameStateData {
     return this.state;
   }
   

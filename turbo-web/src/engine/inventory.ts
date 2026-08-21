@@ -41,6 +41,16 @@ export class InventoryRenderer extends BaseRenderer {
     this.onToggle?.(this.visible);
   }
 
+  show(): void {
+    if (this.visible) return;
+    this.toggle();
+  }
+
+  hide(): void {
+    if (!this.visible) return;
+    this.toggle();
+  }
+
   // ===== Geometry =====
 
   private gridArea() {
