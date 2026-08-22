@@ -15,7 +15,7 @@
  */
 
 import { BaseRenderer } from './base-renderer';
-import type { Zone, Obstacle, NPC, Feature } from '../../types';
+import type { Zone, Obstacle, NPC, Feature, FeatureType } from '../../types';
 
 // ===== Internal types =====
 
@@ -70,6 +70,12 @@ export class TpEngineRenderer extends BaseRenderer {
   private boundKeyDown = this.onKeyDown.bind(this);
   private boundKeyUp = this.onKeyUp.bind(this);
 
+  // E/Space-confirm state for threats & gates (items still auto-pickup on touch)
+  private pendingInteract: Feature | null = null;
+  private pendingNpc: NPC | null = null;
+  private interactQueued = false; // E/Space tapped while at a gate/threat/npc
+  private readonly CONFIRM_RADIUS = 3.0; // world units to be "at" a confirmable feature
+
   // Callbacks
   onFeatureInteract?: (feature: Feature) => void;
   onNpcInteract?: (npc: NPC) => void;
@@ -81,9 +87,10 @@ export class TpEngineRenderer extends BaseRenderer {
     if (!data || !this.canvas || !this.ctx) return;
     this.zone = data as Zone;
 
-    // Player starts near center
+    // Player starts near center — nudge away from any obstacle so we don't spawn trapped
     this.playerX = 0;
     this.playerY = 0;
+    this.nudgeAwayFromObstacles();
 
     // Dog colors from the selected dog (if available via a custom prop on zone)
     this.playerColor = (this.zone as any).playerColor ?? '#ffffff';
@@ -172,6 +179,19 @@ export class TpEngineRenderer extends BaseRenderer {
     const psx = W / 2;
     const psy = H / 2;
     this.renderDog(psx, psy, this.playerColor, this.playerAccent, this.playerFacing, 'You');
+
+    // "Press E" prompt when standing at a confirmable threat/gate or an NPC
+    const promptTarget = this.pendingInteract?.label ?? (this.pendingNpc ? this.pendingNpc.name : null);
+    if (promptTarget) {
+      ctx.fillStyle = 'rgba(10,10,25,0.85)';
+      const label = `Press [E] / [Space] — ${promptTarget}`;
+      ctx.font = 'bold 15px sans-serif';
+      const tw = ctx.measureText(label).width;
+      ctx.fillRect(psx - tw / 2 - 14, psy - 52, tw + 28, 30);
+      ctx.fillStyle = '#ffd700';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, psx, psy - 32);
+    }
   }
 
   protected onDestroy(): void {
@@ -183,6 +203,9 @@ export class TpEngineRenderer extends BaseRenderer {
     this.features = [];
     this.scentTrail = [];
     this.keysPressed.clear();
+    this.pendingInteract = null;
+    this.pendingNpc = null;
+    this.interactQueued = false;
   }
 
   // ===== Movement =====
@@ -223,6 +246,29 @@ export class TpEngineRenderer extends BaseRenderer {
       if (dx * dx + dy * dy < (r + radius) * (r + radius)) return true;
     }
     return false;
+  }
+
+  /**
+   * If the player is currently inside an obstacle's collision circle, walk
+   * outward in small steps until we're clear. Prevents the "trapped at spawn"
+   * regression when layout data places an obstacle at the origin.
+   */
+  private nudgeAwayFromObstacles(): void {
+    const step = 0.5;
+    const maxRadius = 12;
+    for (let radius = 0; radius <= maxRadius; radius += step) {
+      if (radius === 0 && !this.collidesWithObstacle(this.playerX, this.playerY)) return;
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+        const nx = this.playerX + Math.cos(a) * radius;
+        const ny = this.playerY + Math.sin(a) * radius;
+        if (!this.collidesWithObstacle(nx, ny)) {
+          this.playerX = nx;
+          this.playerY = ny;
+          return;
+        }
+      }
+    }
+    // Last resort: leave the player where they are; the world is still playable.
   }
 
   // ===== NPC AI =====
@@ -277,21 +323,62 @@ export class TpEngineRenderer extends BaseRenderer {
 
   // ===== Interactions =====
 
+  /** Threat + gate feature types that require an E/Space confirm (not auto on touch). */
+  private static readonly CONFIRM_TYPES = new Set<FeatureType>([
+    'traffic', 'cat', 'bully', 'storm', 'vacuum', // threats
+    'gate', 'return_gate', 'locked_door', 'door',  // gates / doors
+  ]);
+
+  private isConfirmable(feature: Feature): boolean {
+    return TpEngineRenderer.CONFIRM_TYPES.has(feature.type);
+  }
+
+  private interactKeyHeld(): boolean {
+    return this.keysPressed.has('e') || this.keysPressed.has(' ');
+  }
+
+  /** The nearest confirmable (threat/gate) feature within confirm range, else null. */
+  private nearestConfirmable(): Feature | null {
+    let best: Feature | null = null;
+    let bestDist = Infinity;
+    for (const fs of this.features) {
+      if (fs.state === 'completed') continue;
+      if (!this.isConfirmable(fs.feature)) continue;
+      const dx = fs.feature.x - this.playerX;
+      const dy = fs.feature.z - this.playerY;
+      const dist = Math.hypot(dx, dy);
+      if (dist < this.CONFIRM_RADIUS && dist < bestDist) {
+        best = fs.feature;
+        bestDist = dist;
+      }
+    }
+    return best;
+  }
+
+  private nearestNpc(): NPC | null {
+    let best: NPC | null = null;
+    let bestDist = Infinity;
+    for (const npc of this.npcs) {
+      const d = Math.hypot(npc.x - this.playerX, npc.z - this.playerY);
+      if (d < this.CONFIRM_RADIUS && d < bestDist) {
+        best = npc;
+        bestDist = d;
+      }
+    }
+    return best;
+  }
+
   private checkInteractions(): void {
     if (!this.zone) return;
 
+    // 1) Auto-pickup / auto-complete features that do NOT need confirmation
     for (const fs of this.features) {
       if (fs.state === 'completed') continue;
+      if (this.isConfirmable(fs.feature)) continue; // handled by confirm path
       const dx = fs.feature.x - this.playerX;
       const dy = fs.feature.z - this.playerY;
       if (dx * dx + dy * dy < INTERACT_RADIUS * INTERACT_RADIUS / (WORLD_SCALE * WORLD_SCALE)) {
-        // Auto-complete non-interactive features; interactive ones fire callback
         if (fs.feature.type === 'scent_post' || fs.feature.type === 'fire_hydrant' || fs.feature.type === 'bridge' || fs.feature.type === 'fountain' || fs.feature.type === 'water') {
-          fs.state = 'completed';
-          continue;
-        }
-        if (fs.feature.type === 'return_gate') {
-          this.onReturnGate?.(this.zone.returnZone ?? '');
           fs.state = 'completed';
           continue;
         }
@@ -300,13 +387,29 @@ export class TpEngineRenderer extends BaseRenderer {
       }
     }
 
-    for (const npc of this.npcs) {
-      const dx = npc.x - this.playerX;
-      const dy = npc.z - this.playerY;
-      if (dx * dx + dy * dy < (INTERACT_RADIUS * 1.2) * (INTERACT_RADIUS * 1.2) / (WORLD_SCALE * WORLD_SCALE)) {
-        this.onNpcInteract?.(npc);
-        // NPCs don't get marked completed — they can be re-interacted with
+    // 2) E/Space-confirm path: enter/trigger the nearest threat or gate
+    const target = this.nearestConfirmable();
+    this.pendingInteract = target; // drives the "press E" prompt render
+
+    // NPCs also require E/Space confirmation (no more accidental trigger on walk-by)
+    const npcTarget = this.nearestNpc();
+    this.pendingNpc = npcTarget;
+
+    if ((target || npcTarget) && (this.interactKeyHeld() || this.interactQueued)) {
+      if (target) {
+        const fs = this.features.find(f => f.feature === target && f.state === 'active');
+        if (target.type === 'return_gate') {
+          this.onReturnGate?.(this.zone.returnZone ?? '');
+        } else {
+          this.onFeatureInteract?.(target);
+        }
+        if (fs) fs.state = 'completed';
+      } else if (npcTarget) {
+        this.onNpcInteract?.(npcTarget);
       }
+      this.pendingInteract = null;
+      this.pendingNpc = null;
+      this.interactQueued = false;
     }
   }
 
@@ -371,25 +474,43 @@ export class TpEngineRenderer extends BaseRenderer {
       secret_passage: '#7c4dff',
       water: '#4fc3f7',
       dog_show: '#ffb300',
+      gate: '#4a9eff',
+      here: '#ff9f43',
     };
 
     const color = colors[feature.type] ?? '#cccccc';
     const size = 14;
 
-    // Glow ring
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    ctx.globalAlpha = 0.5;
-    ctx.beginPath();
-    ctx.arc(sx, sy, size + 6, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+    // Zone gates get a taller, inviting portal-arch look
+    if (feature.type === 'gate' || feature.type === 'return_gate') {
+      ctx.fillStyle = '#6a4a2a';
+      ctx.fillRect(sx - size - 4, sy - 6, 5, size + 6);
+      ctx.fillRect(sx + size - 1, sy - 6, 5, size + 6);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(sx, sy - 6, size + 4, Math.PI, 0);
+      ctx.stroke();
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(sx, sy, size + 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, size + 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
 
-    // Body
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(sx, sy, size, 0, Math.PI * 2);
-    ctx.fill();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Label
     ctx.fillStyle = '#ffffff';
@@ -447,7 +568,12 @@ export class TpEngineRenderer extends BaseRenderer {
   // ===== Input =====
 
   private onKeyDown(e: KeyboardEvent): void {
-    this.keysPressed.add(e.key.toLowerCase());
+    const key = e.key.toLowerCase();
+    this.keysPressed.add(key);
+    if (key === 'e' || key === ' ') {
+      this.interactQueued = true;
+      e.preventDefault();
+    }
   }
 
   private onKeyUp(e: KeyboardEvent): void {

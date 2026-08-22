@@ -19,11 +19,14 @@ import { MangaCombatOverlay } from './engine/render/manga-combat';
 import { InventoryRenderer } from './engine/inventory';
 import { HUDRenderer } from './engine/render/hud';
 import { CompanionPanel } from './engine/companion-panel';
+import { DialogueOverlay } from './engine/dialogue-overlay';
+import { MapStore } from './engine/map-store';
+import { MapPanel } from './engine/map-panel';
 import { HintPanel } from './engine/hint-panel';
 import { Transitions } from './engine/transitions';
 import { Endgame } from './engine/endgame';
 import { saveGame, loadGame, hasSave, clearSave, applyLoadedState } from './engine/save-load';
-import type { DogId, Zone, Room, Feature } from './types';
+import type { DogId, Zone, Room, Feature, RoomFeature } from './types';
 
 // ===== DOM References =====
 const loadingScreen = document.getElementById('loading-screen');
@@ -41,11 +44,17 @@ const mangaOverlay = new MangaCombatOverlay();
 const inventoryRenderer = new InventoryRenderer();
 const hudRenderer = new HUDRenderer();
 const companionPanel = new CompanionPanel();
+const dialogueOverlay = new DialogueOverlay();
+const mapStore = new MapStore();
+const mapPanel = new MapPanel();
 const hintPanel = new HintPanel();
 const transitions = new Transitions();
 const endgame = new Endgame();
 
 let activeRenderer: { update: (d: number, t: number) => void; dispose: () => void } | null = null;
+
+// Expose for debugging / E2E inspection
+(window as any).__activeRenderer = () => activeRenderer;
 
 // ===== Game Flow State =====
 type Screen = 'loading' | 'select_dog' | 'playing' | 'game_over' | 'victory';
@@ -108,6 +117,9 @@ const onKeyDown = (e: KeyboardEvent) => {
       companionPanel.hide();
     }
   }
+  if (k === 'm') {
+    mapPanel.setVisible(!mapPanel.isVisible);
+  }
   if (e.key === 'Escape') {
     // Close any open panel
     if (inventoryRenderer.visible) inventoryRenderer.hide();
@@ -161,6 +173,9 @@ function init(): void {
     inventoryRenderer.init(canvasEl);
     hudRenderer.init(canvasEl);
     companionPanel.init(canvasEl);
+    dialogueOverlay.init(canvasEl);
+    dialogueOverlay.setVisibilityCheck(() => companionPanel.isVisible || hintPanel.isVisible || inventoryRenderer.visible);
+    mapPanel.init(canvasEl, mapStore);
     hintPanel.init(canvasEl);
     transitions.init(canvasEl);
     endgame.init(canvasEl);
@@ -187,6 +202,37 @@ function init(): void {
     return id ? COMPANIONS[id]?.name ?? null : null;
   };
   hudRenderer.isThreatActive = () => threatManager.isBusy;
+
+  // Lower-left status panel: live metrics + clues found
+  hudRenderer.getMetrics = () => {
+    const s = State.getState();
+    const cluesFound = (s.inventory as Array<{ item: string | null }>).filter(
+      (slot) => slot.item && (ITEMS[slot.item]?.category === 'clue' || ITEMS[slot.item]?.category === 'key')
+    ).length;
+    return {
+      happiness: s.happiness,
+      itemsCollected: s.itemsCollected,
+      companionsMet: s.companionsMet.size,
+      threatsResolved: s.threatsResolved,
+      cluesFound,
+      routeRevealed: s.routeRevealed,
+    };
+  };
+  hudRenderer.getClues = () => {
+    const s = State.getState();
+    const seen = new Set<string>();
+    const clues: string[] = [];
+    for (const slot of s.inventory as Array<{ item: string | null; count: number }>) {
+      if (!slot.item || slot.count <= 0) continue;
+      const item = ITEMS[slot.item];
+      if (!item) continue;
+      if (item.category !== 'clue' && item.category !== 'key') continue;
+      if (seen.has(slot.item)) continue;
+      seen.add(slot.item);
+      clues.push(item.name);
+    }
+    return clues;
+  };
 
   // Wire threat manager to State + manga
   threatManager.onResolve = (threatName, success) => {
@@ -368,6 +414,7 @@ function enterZone(zoneId: string): void {
     if (!room) { console.error('[Turbo] Room not found:', firstRoomId); return; }
     if (canvasEl) {
       fpRenderer = new FpRoomRenderer();
+      fpRenderer.setZoneRooms(zone.rooms ?? null);
       fpRenderer.init(canvasEl, room);
       wireFpRenderer(fpRenderer, zone);
       activeRenderer = fpRenderer;
@@ -391,6 +438,7 @@ function enterZone(zoneId: string): void {
     if (zone.rooms && canvasEl) {
       currentRoomId = zone.rooms[0].id;
       fpRenderer = new FpRoomRenderer();
+      fpRenderer.setZoneRooms(zone.rooms ?? null);
       const room = zone.rooms[0];
       fpRenderer.init(canvasEl, room);
       wireFpRenderer(fpRenderer, zone);
@@ -400,7 +448,43 @@ function enterZone(zoneId: string): void {
 
   State.enterZone(zoneId);
   autosave();
+
+  // Map: record the zone + its discoverable elements
+  recordZoneInMap(zone);
+
   console.log(`[Turbo] Entered zone: ${zone.name} (type=${zone.type})`);
+}
+
+/** Register a zone (and its elements) in the map as explored. */
+function recordZoneInMap(zone: Zone): void {
+  const emoji = (zone.name.match(/^\p{Emoji}/u)?.[0]) ?? '📍';
+  mapStore.addZone(zone.id, zone.name, emoji);
+  mapStore.explore(zone.id);
+  // Discoverable elements: gates, items, home, NPCs
+  for (const f of zone.features ?? []) {
+    if (f.type === 'gate') mapStore.addElement(zone.id, { label: f.label, x: f.x, y: f.z, kind: 'gate' });
+    else if (f.type === 'home') mapStore.addElement(zone.id, { label: '🏠 Home', x: f.x, y: f.z, kind: 'home' });
+    else if (f.item && (f.type === 'treasure' || f.type === 'hint' || f.type === 'food')) {
+      mapStore.addElement(zone.id, { label: f.label, x: f.x, y: f.z, kind: 'item' });
+    }
+  }
+  for (const npc of zone.npcs ?? []) {
+    mapStore.addElement(zone.id, { label: npc.name, x: npc.x, y: npc.z, kind: 'npc' });
+  }
+  // Discover adjacent zones (from gates) + home, so the map shows where to go
+  for (const f of zone.features ?? []) {
+    if (f.gate && ZONES[f.gate]) {
+      const tz = ZONES[f.gate];
+      const tzEmoji = (tz.name.match(/^\p{Emoji}/u)?.[0]) ?? '📍';
+      mapStore.addZone(f.gate, tz.name, tzEmoji);
+    }
+  }
+  // Home is always discoverable (the goal)
+  if (ZONES.home) {
+    const tz = ZONES.home;
+    const tzEmoji = (tz.name.match(/^\p{Emoji}/u)?.[0]) ?? '🏠';
+    mapStore.addZone('home', tz.name, tzEmoji);
+  }
 }
 
 function enterRoom(roomId: string): void {
@@ -415,12 +499,14 @@ function enterRoom(roomId: string): void {
   currentRoomId = roomId;
   if (canvasEl) {
     fpRenderer = new FpRoomRenderer();
+    fpRenderer.setZoneRooms(zone.rooms ?? null);
     fpRenderer.init(canvasEl, room);
     wireFpRenderer(fpRenderer, zone);
     activeRenderer = fpRenderer;
   }
   State.enterRoom(roomId);
   autosave();
+  mapStore.setRoom(roomId);
 }
 
 function disposeActiveRenderer(): void {
@@ -442,18 +528,37 @@ function wireFpRenderer(renderer: FpRoomRenderer, zone: Zone): void {
     handleFeature(feature, zone);
   };
 
+  // Proximity E/Space interaction (e.g. "New Friend" in the kennels, locked doors)
+  renderer.onFeatureInteract = (feature: RoomFeature) => {
+    handleFeature(feature, zone);
+  };
+
   // Exit navigation
   renderer.onExitClick = (exitRoomId: string) => {
-    const exitRoom = zone.rooms?.find(r => r.id === exitRoomId);
-    if (!exitRoom) return;
-
-    if (exitRoom.entranceZone) {
-      // Portal to another zone
-      enterZone(exitRoom.entranceZone);
-    } else {
-      enterRoom(exitRoomId);
-    }
+    navigateToExit(exitRoomId, zone);
   };
+
+  // Proximity / key interaction at a door (walk into the wall or press E/Space)
+  renderer.onExitInteract = (exitRoomId: string) => {
+    navigateToExit(exitRoomId, zone);
+  };
+}
+
+/**
+ * Resolve an exit room id into the correct navigation call.
+ * If the exit is an entrance to another zone, portal there; otherwise move
+ * to the adjacent room within the current zone. Shared by click and
+ * proximity/key interaction paths.
+ */
+function navigateToExit(exitRoomId: string, zone: Zone): void {
+  const exitRoom = zone.rooms?.find(r => r.id === exitRoomId);
+  if (!exitRoom) return;
+
+  if (exitRoom.entranceZone) {
+    enterZone(exitRoom.entranceZone);
+  } else {
+    enterRoom(exitRoomId);
+  }
 }
 
 // ===== TP Renderer Wiring =====
@@ -467,7 +572,7 @@ function wireTpRenderer(renderer: TpEngineRenderer, zone: Zone): void {
     const companionId = Object.keys(COMPANIONS).find(id => COMPANIONS[id].name === npc.name);
     if (companionId) {
       State.meetCompanion(companionId);
-      Audio.playSfx('bark');
+      showCompanionDialogue(companionId);
       companionPanel.refresh(companionSnapshot());
       autosave();
     }
@@ -479,8 +584,32 @@ function wireTpRenderer(renderer: TpEngineRenderer, zone: Zone): void {
 }
 
 // ===== Feature Handling (shared FP + TP) =====
-function handleFeature(feature: { type: string; item?: string }, zone: Zone): void {
+
+/** Show a companion's greeting line in a dialogue bubble (after a bark). */
+function showCompanionDialogue(companionId: string): void {
+  const companion = COMPANIONS[companionId];
+  if (!companion) return;
+  Audio.playSfx('bark');
+  const lines = companion.dialogue;
+  const line = lines.length ? lines[Math.floor(Math.random() * lines.length)] : 'Woof!';
+  dialogueOverlay.show(companion.name, line, companion.color, companion.accentColor);
+}
+
+function handleFeature(feature: { type: string; item?: string; gate?: string }, zone: Zone): void {
   const ftype = feature.type;
+
+  // Zone gate (a feature carrying a `gate` target zone) — hub navigation
+  if (feature.gate && ZONES[feature.gate]) {
+    Audio.playSfx('select');
+    enterZone(feature.gate);
+    return;
+  }
+
+  // 'You are here' marker — harmless, just acknowledge
+  if (ftype === 'here') {
+    Audio.playSfx('select');
+    return;
+  }
 
   // Threat triggers
   const threatMap: Record<string, string> = {
@@ -500,6 +629,17 @@ function handleFeature(feature: { type: string; item?: string }, zone: Zone): vo
     return;
   }
 
+  // Companion (must come BEFORE item pickup: a dog_friend feature also carries
+  // an item, but its primary effect is meeting/activating the companion)
+  if (ftype === 'dog_friend') {
+    const companionId = zone.companions?.[0] ?? Object.keys(COMPANIONS)[0];
+    State.meetCompanion(companionId);
+    showCompanionDialogue(companionId);
+    companionPanel.refresh(companionSnapshot());
+    autosave();
+    return;
+  }
+
   // Item pickup
   if (feature.item && ITEMS[feature.item]) {
     if (State.collectItem(feature.item)) {
@@ -514,17 +654,6 @@ function handleFeature(feature: { type: string; item?: string }, zone: Zone): vo
     State.gameWin();
     clearSave();
     showVictory();
-    return;
-  }
-
-  // Companion
-  if (ftype === 'dog_friend') {
-    // Find a companion associated with this zone
-    const companionId = zone.companions?.[0] ?? Object.keys(COMPANIONS)[0];
-    State.meetCompanion(companionId);
-    Audio.playSfx('bark');
-    companionPanel.refresh(companionSnapshot());
-    autosave();
     return;
   }
 
@@ -646,6 +775,14 @@ function update(delta: number, time: number): void {
   } else if (inventoryRenderer.visible) {
     inventoryRenderer.update(0, time);
   }
+
+  // Dialogue overlay renders last (on top of everything) when active
+  if (dialogueOverlay.active) {
+    dialogueOverlay.render();
+  }
+
+  // Minimap renders on top of the zone + HUD (top-right)
+  mapPanel.render();
 }
 
 // ===== Debug Bridge (E2E test assertions) =====
@@ -661,6 +798,9 @@ function update(delta: number, time: number): void {
   get hintPanelVisible() { return hintPanel.isVisible; },
   get inventoryVisible() { return inventoryRenderer.visible; },
   get companionsMet() { return [...State.getState().companionsMet]; },
+  get dialogueOverlayActive() { return dialogueOverlay.active; },
+  get dialogueOverlayState() { return (dialogueOverlay as any).state ?? null; },
+  get map() { return mapStore.zones().map((z) => ({ id: z.id, explored: z.explored, current: z.current, elements: z.elements.length, rooms: z.rooms })); },
   get itemsCollected() { return State.getState().itemsCollected; },
   get threatsResolved() { return State.getState().threatsResolved; },
   // Navigate directly (bypasses click detection for test reliability)

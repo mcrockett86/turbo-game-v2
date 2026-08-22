@@ -345,42 +345,122 @@ export const ZONES: Record<string, Zone> = {
     id: 'suburban_streets',
     name: '🏘️ Suburban Streets',
     desc: 'Wide sidewalks, unfamiliar houses. The world is so big.',
-    type: 'fp', // first-person
-    rooms: [
-      { id: 'start', name: 'Front Yard', w: 200, h: 150, d: 200, color: '#4a7a3a', exits: ['street_north', 'street_east'] },
-      { id: 'street_north', name: 'North Street', w: 300, h: 120, d: 400, color: '#6a6a6a', exits: ['start', 'intersection'], features: [{type:'traffic', x:150, y:60, w:80, h:20, label:'🚗 Traffic'}] },
-      { id: 'street_east', name: 'East Walk', w: 250, h: 100, d: 350, color: '#5a8a5a', exits: ['start', 'dog_park_gate'], features: [{type:'hint', x:100, y:50, w:30, h:30, label:'🦴 Bone', item:'bone'}] },
-      { id: 'intersection', name: 'Street Intersection', w: 200, h: 150, d: 200, color: '#7a7a7a', exits: ['street_north', 'street_south', 'alley'], features: [{type:'choice', x:100, y:75, w:60, h:40, label:'Choose path'}] },
-      { id: 'street_south', name: 'South Avenue', w: 350, h: 120, d: 300, color: '#6a6a6a', exits: ['intersection', 'apt_gate'], features: [{type:'door', x:175, y:60, w:40, h:50, label:'🚪 Door', locked:true, item:'key'}]},
-      { id: 'alley', name: 'Back Alley', w: 180, h: 100, d: 300, color: '#3a3a4a', exits: ['intersection', 'shelter_entrance'], features: [{type:'cat', x:90, y:50, w:40, h:30, label:'🐱 Mean Cat'}] },
-      { id: 'side_street', name: 'Side Street', w: 200, h: 100, d: 250, color: '#5a5a6a', exits: ['street_north', 'backyard'], features: [{type:'hint', x:100, y:50, w:30, h:30, label:'🐾 Scent Mark', item:'map_fragment'}] },
-      { id: 'backyard', name: 'Backyard', w: 150, h: 100, d: 200, color: '#4a6a3a', exits: ['side_street'], features: [{type:'food', x:75, y:50, w:40, h:30, label:'🍖 Treat', item:'treat'}] },
-      { id: 'dog_park_gate', name: 'Dog Park Gate', w: 100, h: 80, d: 100, color: '#5a9a5a', exits: ['street_east'], isEntrance: true, entranceZone: 'dog_park' },
-      { id: 'shelter_entrance', name: 'Shelter Door', w: 120, h: 100, d: 120, color: '#4a4a6a', exits: ['alley'], isEntrance: true, entranceZone: 'shelter' },
-      { id: 'apt_gate', name: 'Apartment Gate', w: 100, h: 80, d: 100, color: '#7a6a5a', exits: ['street_south'], isEntrance: true, entranceZone: 'apartment' },
-      // New zone exits
-      { id: 'pet_store_road', name: 'Pet Store Road', w: 200, h: 100, d: 250, color: '#5a5a6a', exits: ['street_north', 'pet_store_gate'], features: [{type:'hint', x:100, y:50, w:30, h:30, label:'🐾 Scent', item:'pet_shop_ticket'}] },
-      { id: 'pet_store_gate', name: 'Pet Store Gate', w: 100, h: 80, d: 100, color: '#FFB6C1', exits: ['pet_store_road'], isEntrance: true, entranceZone: 'pet_store' },
-      { id: 'garden_gate', name: 'Garden Gate', w: 100, h: 80, d: 100, color: '#FFB6C1', exits: ['side_street'], isEntrance: true, entranceZone: 'garden' },
-      { id: 'library_gate', name: 'Library Gate', w: 100, h: 80, d: 100, color: '#D2B48C', exits: ['side_street'], isEntrance: true, entranceZone: 'library' },
-      { id: 'market_gate', name: 'Market Gate', w: 100, h: 80, d: 100, color: '#FFD700', exits: ['street_south'], isEntrance: true, entranceZone: 'market' },
-      { id: 'north_road', name: 'North Road', w: 250, h: 120, d: 300, color: '#6a6a6a', exits: ['street_north', 'dog_show_gate', 'lake_road'] },
-      { id: 'dog_show_gate', name: 'Dog Show Gate', w: 100, h: 80, d: 100, color: '#8B4513', exits: ['north_road'], isEntrance: true, entranceZone: 'dog_show' },
-      { id: 'lake_road', name: 'Lake Road', w: 200, h: 100, d: 250, color: '#4a9eff', exits: ['north_road', 'lake_entrance'] },
-      { id: 'lake_entrance', name: 'Lake Shore', w: 100, h: 80, d: 100, color: '#006994', exits: ['lake_road'], isEntrance: true, entranceZone: 'lake' },
-      { id: 'forest_path', name: 'Forest Path', w: 200, h: 100, d: 250, color: '#1a3a0a', exits: ['lake_road', 'forest_gate'], features: [{type:'hint', x:100, y:50, w:30, h:30, label:'🌲 Trail Mark', item:'pinecone'}] },
-      { id: 'forest_gate', name: 'Forest Gate', w: 100, h: 80, d: 100, color: '#2d5a1e', exits: ['forest_path'], isEntrance: true, entranceZone: 'forest' },
-      { id: 'south_coast', name: 'South Coast', w: 250, h: 120, d: 300, color: '#87CEEB', exits: ['street_south', 'beach_gate', 'mountain_path'] },
-      { id: 'beach_gate', name: 'Beach Gate', w: 100, h: 80, d: 100, color: '#F4A460', exits: ['south_coast'], isEntrance: true, entranceZone: 'beach' },
-      { id: 'mountain_path', name: 'Mountain Path', w: 200, h: 100, d: 250, color: '#708090', exits: ['south_coast', 'mountain_gate'], features: [{type:'hint', x:100, y:50, w:30, h:30, label:'🗺️ Trail', item:'compass_fragment'}] },
-      { id: 'mountain_gate', name: 'Mountain Gate', w: 100, h: 80, d: 100, color: '#4682B4', exits: ['mountain_path'], isEntrance: true, entranceZone: 'mountain' },
-      { id: 'waterfall_road', name: 'Waterfall Road', w: 200, h: 100, d: 250, color: '#2d5a1e', exits: ['forest_path', 'waterfall_gate'], features: [{type:'hint', x:100, y:50, w:30, h:30, label:'💧 Splash', item:'lake_stone'}] },
-      { id: 'waterfall_gate', name: 'Waterfall Gate', w: 100, h: 80, d: 100, color: '#006994', exits: ['waterfall_road'], isEntrance: true, entranceZone: 'waterfall' },
-      { id: 'secret_park_road', name: 'Secret Park Road', w: 200, h: 100, d: 250, color: '#191970', exits: ['forest_path', 'park_secret_gate'] },
-      { id: 'park_secret_gate', name: 'Secret Park Gate', w: 100, h: 80, d: 100, color: '#4a4a4a', exits: ['secret_park_road'], isEntrance: true, entranceZone: 'park_secret' }
+    type: 'tp', // top-down open world — free-roam hub, same engine as dog park
+    skyColor: '#a8d8f0',
+    groundColor: '#5c8a4e',
+    dogColor: '#d4a574',
+    accentColor: '#ff6b35',
+    obstacles: [
+      // Tree-lined boulevard along the top (the "North Street")
+      { type: 'tree', x: -12, z: -7, height: 3, trunkColor: '#5a3a1a', leafColor: '#2d5a1e' },
+      { type: 'tree', x: -6, z: -7, height: 3, trunkColor: '#5a3a1a', leafColor: '#3a7a2e' },
+      { type: 'tree', x: 0, z: -7, height: 3, trunkColor: '#5a3a1a', leafColor: '#2d6a1e' },
+      { type: 'tree', x: 6, z: -7, height: 3, trunkColor: '#5a3a1a', leafColor: '#3a8a2e' },
+      { type: 'tree', x: 12, z: -7, height: 3, trunkColor: '#5a3a1a', leafColor: '#2d5a1e' },
+      // Front-yard houses & hedges (kept away from the spawn point)
+      { type: 'fence', x: -8, z: -2, width: 5, height: 1.2, color: '#8B4513' },
+      { type: 'bench', x: -5, z: 4, width: 2, color: '#8B6914' },
+      { type: 'tree', x: -10, z: 3, height: 2.5, trunkColor: '#5a3a1a', leafColor: '#3a7a2e' },
+      // Alley bushes (shelter, west)
+      { type: 'bush', x: -9, z: -4, color: '#2d5a1e' },
+      { type: 'tree', x: -12, z: -2, height: 2.5, trunkColor: '#5a3a1a', leafColor: '#2d5a1e' },
+      // Pet store garden (north)
+      { type: 'bush', x: 2, z: -6, color: '#3a8a2e' },
+      { type: 'bush', x: -2, z: -6, color: '#2d6a1e' },
+      // Garden flowers (east)
+      { type: 'bush', x: 10, z: 1, color: '#ff6f91' },
+      { type: 'bush', x: 12, z: 2, color: '#2d6a1e' },
+      // Library lawn (east)
+      { type: 'tree', x: 11, z: -2, height: 2.5, trunkColor: '#5a3a1a', leafColor: '#3a7a2e' },
+      { type: 'bush', x: 9, z: -1, color: '#2d6a1e' },
+      // Market stalls (south)
+      { type: 'bench', x: -1, z: 8, width: 2, color: '#8B6914' },
+      { type: 'bush', x: 3, z: 8, color: '#3a8a2e' },
+      { type: 'tree', x: -5, z: 10, height: 3, trunkColor: '#5a3a1a', leafColor: '#2d5a1e' },
+      // Dog show grandstand (north)
+      { type: 'bench', x: 9, z: -6, width: 3, color: '#8B6914' },
+      { type: 'bush', x: 12, z: -7, color: '#3a8a2e' },
+      // Lake shoreline (north)
+      { type: 'bush', x: -10, z: -8, color: '#3a8a2e' },
+      { type: 'tree', x: -13, z: -9, height: 3, trunkColor: '#5a3a1a', leafColor: '#2d6a1e' },
+      // Forest edge (east)
+      { type: 'tree', x: 13, z: -4, height: 3, trunkColor: '#5a3a1a', leafColor: '#1e4a12' },
+      { type: 'tree', x: 15, z: -3, height: 2.5, trunkColor: '#5a3a1a', leafColor: '#2d6a1e' },
+      { type: 'bush', x: 14, z: -2, color: '#1e4a12' },
+      // Beach palm (south)
+      { type: 'tree', x: -3, z: 12, height: 3, trunkColor: '#a0722d', leafColor: '#3a8a2e' },
+      { type: 'bush', x: 1, z: 13, color: '#3a8a2e' },
+      // Mountain path pine (south)
+      { type: 'tree', x: -9, z: 12, height: 3, trunkColor: '#5a3a1a', leafColor: '#1e4a12' },
+      { type: 'tree', x: -11, z: 13, height: 2.5, trunkColor: '#5a3a1a', leafColor: '#2d6a1e' },
+      // Waterfall mossy rocks (east)
+      { type: 'bush', x: 12, z: 5, color: '#2d5a1e' },
+      { type: 'bush', x: 14, z: 6, color: '#3a8a2e' },
+      // Secret park shadows (deep east)
+      { type: 'tree', x: 16, z: 4, height: 3, trunkColor: '#3a2a1a', leafColor: '#1a3a12' },
+      { type: 'tree', x: 17, z: 6, height: 2.5, trunkColor: '#3a2a1a', leafColor: '#142e0e' },
+      { type: 'bush', x: 15, z: 5, color: '#1a3a12' }
+    ],
+    npcs: [
+      {
+        id: 'mailman_dog',
+        name: 'Biscuit',
+        color: '#D2A679',
+        accentColor: '#C68642',
+        x: 3,
+        z: 3,
+        dialogue: [
+          'Woof! You\'re a long way from home, friend.',
+          'I\'ve seen a lot of dogs pass through these streets.',
+          'The lake\'s a nice place to think. And the forest, if you like.',
+        ],
+      },
+      {
+        id: 'squirrel_spotter',
+        name: 'Pip',
+        color: '#A0522D',
+        accentColor: '#CD853F',
+        x: -4,
+        z: 1,
+        dialogue: [
+          'SQUIRREL! Right over by the hedges!',
+          '...okay, it went in a tree. Classic squirrel.',
+          'Hey, have you been to the garden? Best tomatoes in the county.',
+        ],
+      },
+    ],
+    features: [
+      // Player starts in the front yard
+      { type: 'here', x: 0, z: 0, id: 'street_start', label: '🐾 You Are Here' },
+      // Item pickups (spread around the hub so they're easy to find)
+      { type: 'treasure', x: 3, z: 4, id: 'street_bone', label: '🦴 Bone', item: 'bone' },
+      { type: 'treasure', x: -4, z: 6, id: 'street_treat', label: '🍖 Treat', item: 'treat' },
+      { type: 'hint', x: -8, z: -4, id: 'street_map', label: '🐾 Scent Mark', item: 'map_fragment' },
+      { type: 'treasure', x: 7, z: -4, id: 'street_ticket', label: '🎫 Pet Shop Scent', item: 'pet_shop_ticket' },
+      { type: 'treasure', x: 15, z: -5, id: 'street_pinecone', label: '🌲 Trail Mark', item: 'pinecone' },
+      { type: 'treasure', x: -9, z: 12, id: 'street_compass', label: '🗺️ Trail', item: 'compass_fragment' },
+      { type: 'treasure', x: 14, z: 7, id: 'street_stone', label: '💧 Splash', item: 'lake_stone' },
+      // Threats (kept from the old rooms)
+      { type: 'traffic', x: 11, z: -6, id: 'street_traffic', label: '🚗 Traffic' },
+      { type: 'cat', x: -12, z: -4, id: 'street_cat', label: '🐱 Mean Cat' },
+      // Gates to every other zone (spread around the hub)
+      { type: 'gate', x: 8, z: 3, id: 'gate_dog_park', label: '🌳 Dog Park', gate: 'dog_park' },
+      { type: 'gate', x: -15, z: -2, id: 'gate_shelter', label: '🏥 Shelter', gate: 'shelter' },
+      { type: 'gate', x: -7, z: 3, id: 'gate_apartment', label: '🏢 Apartment', gate: 'apartment' },
+      { type: 'gate', x: 4, z: -10, id: 'gate_pet_store', label: '🛒 Pet Store', gate: 'pet_store' },
+      { type: 'gate', x: 13, z: 2, id: 'gate_garden', label: '🌷 Garden', gate: 'garden' },
+      { type: 'gate', x: 13, z: -3, id: 'gate_library', label: '📚 Library', gate: 'library' },
+      { type: 'gate', x: 1, z: 12, id: 'gate_market', label: '🧺 Market', gate: 'market' },
+      { type: 'gate', x: 11, z: -9, id: 'gate_dog_show', label: '🏅 Dog Show', gate: 'dog_show' },
+      { type: 'gate', x: -14, z: -11, id: 'gate_lake', label: '🌊 Lake', gate: 'lake' },
+      { type: 'gate', x: 16, z: -5, id: 'gate_forest', label: '🌲 Forest', gate: 'forest' },
+      { type: 'gate', x: -3, z: 15, id: 'gate_beach', label: '🏖️ Beach', gate: 'beach' },
+      { type: 'gate', x: -12, z: 14, id: 'gate_mountain', label: '⛰️ Mountain', gate: 'mountain' },
+      { type: 'gate', x: 16, z: 7, id: 'gate_waterfall', label: '💦 Waterfall', gate: 'waterfall' },
+      { type: 'gate', x: 18, z: 4, id: 'gate_secret', label: '🌙 Secret Park', gate: 'park_secret' }
     ],
     music: 'suburban',
-    hint: 'You see a squirrel. It reminds you of... something. A yard? With squirrels?'
+    hint: 'You see a squirrel. It reminds you of... something. A yard? With squirrels? The gates all lead somewhere — follow the one that smells like home.'
   },
   dog_park: {
     id: 'dog_park',
@@ -472,6 +552,7 @@ export const ZONES: Record<string, Zone> = {
       { id: 'shelter_garden', name: 'Garden', w: 150, h: 100, d: 120, color: '#4a7a3a', exits: ['shelter_lobby'], features: [{type:'food', x:75, y:50, w:40, h:30, label:'🍖 Treat', item:'treat'}] },
       { id: 'shelter_vet', name: 'Vet Room', w: 100, h: 80, d: 100, color: '#9a9aaa', exits: ['shelter_lobby'], features: [{type:'hint', x:50, y:40, w:40, h:30, label:'📋 Medical Record', item:'collar'}] }
     ],
+    companions: ['shelter_dog'],
     music: 'shelter',
     hint: 'A poster shows a lost dog. It looks... familiar. But it could be anyone.',
     returnZone: 'suburban_streets',

@@ -18,6 +18,7 @@ declare global {
       navigateToZone(zoneId: string): void;
       navigateToRoom(roomId: string): void;
       forceEndgame(result: 'victory' | 'defeat'): void;
+      map: Array<{ id: string; explored: boolean; current: boolean; elements: number; rooms: string[] }>;
     };
   }
 }

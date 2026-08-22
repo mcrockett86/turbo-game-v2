@@ -14,6 +14,13 @@ for (const z of Object.values(ZONES))
     for (const f of r.features ?? [])
       if (f.item && !ITEMS[f.item]) errors.push(`bad item ${f.item} in ${z.id}/${r.id}`);
   }
+// TP-zone features: validate item pickups and gate targets
+for (const z of Object.values(ZONES)) {
+  for (const f of z.features ?? []) {
+    if (f.item && !ITEMS[f.item]) errors.push(`bad item ${f.item} in TP zone ${z.id}`);
+    if (f.gate && !ZONES[f.gate]) errors.push(`bad gate ${f.gate} in TP zone ${z.id}`);
+  }
+}
 for (const z of Object.values(ZONES))
   if (z.returnZone && !ZONES[z.returnZone]) errors.push(`bad returnZone ${z.id} -> ${z.returnZone}`);
 for (const z of Object.values(ZONES))

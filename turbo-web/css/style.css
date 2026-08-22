@@ -143,7 +143,58 @@ body {
 }
 
 #start-adventure-btn.hidden {
+
   display: none;
+}
+
+/* Controls legend (shown under the Start button on the dog-select screen) */
+.controls-legend {
+  margin-top: 1.5rem;
+  background: white;
+  border-radius: 16px;
+  padding: 1rem 1.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.controls-row .key {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0.1em 0.55em;
+  background: #1e293b;
+  color: #fff;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  text-align: center;
+  border-radius: 6px;
+}
+
+.controls-row .auto {
+  display: inline-block;
+  padding: 0.1em 0.55em;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 6px;
+}
+
+.controls-row .label {
+  color: #475569;
 }
 
 /* Game View */

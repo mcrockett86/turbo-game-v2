@@ -137,8 +137,10 @@ export type FeatureType =
   | 'return_gate' | 'tv' | 'person' | 'fountain' | 'bridge'
   | 'cave_entrance' | 'secret_passage'
   | 'traffic' | 'choice' | 'celebration' | 'pet_shop' | 'dog_show'
+  | 'bully' | 'vacuum' | 'storm'
   | 'water' | 'lure' | 'treasure_chest' | 'music_box' | 'mailbox'
-  | 'trap' | 'companion_trap' | 'locked_door';
+  | 'trap' | 'companion_trap' | 'locked_door'
+  | 'gate' | 'here';
 
 export interface Feature {
   type: FeatureType;
@@ -146,6 +148,8 @@ export interface Feature {
   z: number;
   id?: string;
   label: string;
+  item?: string; // optional item to pick up on interact
+  gate?: string; // optional target zone id for hub gates
 }
 
 // ===== Item Types =====

@@ -14,30 +14,51 @@ import type { Room, RoomFeature } from '@/types';
 
 interface ExitMarker {
   roomId: string;
+  roomName: string;
   wallSide: 'north' | 'south' | 'east' | 'west';
   x: number;
   y: number;
+  // true when this exit is an entrance/portal into another zone
+  isZoneGate: boolean;
 }
 
 export class FpRoomRenderer extends BaseRenderer {
   private room: Room | null = null;
+  private zoneRooms: Room[] | null = null; // all rooms in the zone (for name lookup + geometry)
   private playerX = 0;
   private playerY = 0;
   private features: Map<string, { feature: RoomFeature; state: 'active' | 'locked' | 'completed' }> = new Map();
   private exits: ExitMarker[] = [];
-  
+
   // Movement
   private keysPressed: Set<string> = new Set();
-  private moveSpeed = 3.0; // units per second
-  
+  private moveSpeed = 90; // world-units per second (tuned to cross a ~150u room in ~1.5s)
+
+  // Door interaction (walk-into-wall + E/Space) state
+  private doorTouchExit: ExitMarker | null = null;
+  private doorTouchTime = 0; // seconds of continuous contact with the same door
+  private interactQueued = false; // E/Space pressed while at a door
+  private readonly DOOR_HOVER_RADIUS = 40; // world units
+  private readonly DOOR_TOUCH_HOLD_S = 0.4; // hold-to-enter time at a wall
+
   // Callbacks
   onFeatureClick?: (featureId: string) => void;
+  onFeatureInteract?: (feature: RoomFeature) => void;
   onExitClick?: (roomId: string) => void;
+  onExitInteract?: (roomId: string) => void;
+
+  private readonly FEATURE_HOVER_RADIUS = 24; // world units to be "at" a feature
+  private featureInteractQueued = false; // E/Space tapped while at a feature
   
   // Setup listeners for keyboard input + mouse clicks
   private boundKeyDown = this.onKeyDown.bind(this);
   private boundKeyUp = this.onKeyUp.bind(this);
   private boundMouseDown = this.onMouseDown.bind(this);
+
+  /** Expose the zone's rooms so exits can be named + geometry-mapped. */
+  setZoneRooms(rooms: Room[] | null): void {
+    this.zoneRooms = rooms;
+  }
 
   protected onInit(data?: unknown): void {
     if (!data || !this.canvas || !this.ctx) return;
@@ -62,6 +83,11 @@ export class FpRoomRenderer extends BaseRenderer {
       this.parseExits(roomData);
     }
 
+    // Reset door-interaction state for this room
+    this.doorTouchExit = null;
+    this.doorTouchTime = 0;
+    this.interactQueued = false;
+
     // Setup keyboard + mouse listeners
     window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('keyup', this.boundKeyUp);
@@ -71,61 +97,124 @@ export class FpRoomRenderer extends BaseRenderer {
   private parseExits(room: Room): void {
     const roomWidth = room.w;
     const roomDepth = room.d;
-    
-    // Map exit directions to wall sides and positions
-    const exitMap: Record<string, 'north' | 'south' | 'east' | 'west'> = {
-      north: 'north',
-      south: 'south',
-      east: 'east',
-      west: 'west',
+
+    // Place exits around the perimeter in order (clockwise from north) so each
+    // exit lands on a distinct, predictable wall. Rooms have no stored positions,
+    // so this is the most reliable way to spread multiple exits apart.
+    const sideForIndex = (i: number): 'north' | 'east' | 'south' | 'west' => {
+      const mod = ((i % 4) + 4) % 4;
+      if (mod === 0) return 'north';
+      if (mod === 1) return 'east';
+      if (mod === 2) return 'south';
+      return 'west';
     };
-    
+
     room.exits.forEach((exitId, index) => {
-      // Assign wall side based on position in exits array (simplified mapping)
-      const wallSide = this.determineExitWall(index, room);
-      
-      let x = 0;
-      let y = 0;
-      
-      switch (wallSide) {
-        case 'north':
-          x = roomWidth / 2;
-          y = 0; // Top of room (depth 0)
-          break;
-        case 'south':
-          x = roomWidth / 2;
-          y = roomDepth; // Bottom of room
-          break;
-        case 'east':
-          x = roomWidth; // Right side
-          y = roomDepth / 2;
-          break;
-        case 'west':
-          x = 0; // Left side
-          y = roomDepth / 2;
-          break;
-      }
-      
-      this.exits.push({ roomId: exitId, wallSide, x, y });
+      const wallSide = sideForIndex(index);
+      const x = wallSide === 'east' ? roomWidth : wallSide === 'west' ? 0 : roomWidth / 2;
+      const y = wallSide === 'south' ? roomDepth : wallSide === 'north' ? 0 : roomDepth / 2;
+
+      // If a real adjacent room exists in the zone, this is a normal room exit.
+      const adjacent = this.zoneRooms?.find(r => r.id === exitId);
+      const isZoneGate = !adjacent;
+
+      this.exits.push({
+        roomId: exitId,
+        roomName: this.roomName(exitId),
+        wallSide,
+        x,
+        y,
+        isZoneGate,
+      });
     });
   }
   
-  private determineExitWall(index: number, room: Room): 'north' | 'south' | 'east' | 'west' {
-    // Simplified mapping — in real implementation would use actual room geometry
-    if (index === 0) return 'north';
-    if (index === 1) return 'east';
-    if (index === 2) return 'south';
-    if (index === 3) return 'west';
-    
-    // Default to north for additional exits
-    return 'north';
+  private roomName(roomId: string): string {
+    const match = this.zoneRooms?.find(r => r.id === roomId);
+    return match?.name ?? roomId;
   }
   
   protected onUpdate(delta: number, _time: number): void {
     if (!this.room || !this.canvas) return;
-    
+
     this.updateMovement(delta);
+    this.updateDoorInteraction(delta);
     this.checkFeatureClicks();
+  }
+
+  /**
+   * Door interaction: if the player is standing at (or touching) a wall that
+   * has an exit, they can enter it two ways:
+   *  - Hold position at the wall for DOOR_TOUCH_HOLD_S (walk-into-wall), or
+   *  - Press E / Space while within the door's hover radius.
+   * Fires onExitInteract with the exit's room id.
+   */
+  private updateDoorInteraction(delta: number): void {
+    if (!this.room || this.exits.length === 0) {
+      this.doorTouchExit = null;
+      this.doorTouchTime = 0;
+      return;
+    }
+
+    // Find the nearest exit within hover range
+    let nearest: ExitMarker | null = null;
+    let nearestDist = Infinity;
+    for (const exit of this.exits) {
+      const dx = this.playerX - exit.x;
+      const dy = this.playerY - exit.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < this.DOOR_HOVER_RADIUS && dist < nearestDist) {
+        nearest = exit;
+        nearestDist = dist;
+      }
+    }
+
+    // Also count "touching the wall" (player clamped against a boundary that
+    // has an exit) as being at that door. The movement clamp keeps the player
+    // ~15 units off the boundary, so treat anything within that pad as touching.
+    if (!nearest) {
+      const pad = 18; // just inside the clamped boundary
+      for (const exit of this.exits) {
+        let touching = false;
+        if (exit.wallSide === 'north' && this.playerY <= pad) touching = true;
+        if (exit.wallSide === 'south' && this.playerY >= this.room.d - pad) touching = true;
+        if (exit.wallSide === 'west' && this.playerX <= pad) touching = true;
+        if (exit.wallSide === 'east' && this.playerX >= this.room.w - pad) touching = true;
+        if (touching) {
+          nearest = exit;
+          break;
+        }
+      }
+    }
+
+    if (!nearest) {
+      this.doorTouchExit = null;
+      this.doorTouchTime = 0;
+      return;
+    }
+
+    // Accumulate hold time only for the same door
+    if (this.doorTouchExit === nearest) {
+      this.doorTouchTime += delta;
+    } else {
+      this.doorTouchExit = nearest;
+      this.doorTouchTime = 0;
+    }
+
+    const shouldEnter = this.interactKeyHeld() || this.interactQueued || this.doorTouchTime >= this.DOOR_TOUCH_HOLD_S;
+    if (shouldEnter) {
+      this.interactQueued = false;
+      this.doorTouchTime = 0;
+      const exitId = nearest.roomId;
+      // Reset so we don't double-fire on the next frame before the room swaps
+      this.doorTouchExit = null;
+      this.onExitInteract?.(exitId);
+    }
+  }
+
+  /** True when E or Space is currently held. */
+  private interactKeyHeld(): boolean {
+    return this.keysPressed.has('e') || this.keysPressed.has(' ');
   }
   
   private updateMovement(delta: number): void {
@@ -161,8 +250,38 @@ export class FpRoomRenderer extends BaseRenderer {
   }
   
   private checkFeatureClicks(): void {
-    // Click detection is handled by onMouseDown; this method is retained
-    // for future proximity-based interaction (e.g. auto-interact on touch).
+    // Proximity E/Space interaction for non-item features (e.g. "New Friend" in
+    // the kennels, locked doors). Items are still auto-pickup on touch, and
+    // clicking any feature works as before.
+    if (this.featureInteractQueued) {
+      this.featureInteractQueued = false;
+      this.triggerNearestFeature();
+    }
+  }
+
+  /**
+   * If the player is standing within FEATURE_HOVER_RADIUS of a non-item
+   * feature and holds E/Space, fire onFeatureInteract and mark it complete.
+   */
+  private triggerNearestFeature(): void {
+    if (!this.interactKeyHeld()) return;
+    const px = this.playerX;
+    const py = this.playerY;
+    let best: { id: string; feature: RoomFeature } | null = null;
+    let bestDist = Infinity;
+    for (const [id, data] of this.features) {
+      if (data.state !== 'active') continue;
+      if (data.feature.type === 'item') continue; // items auto-pickup on touch
+      const d = Math.hypot(data.feature.x - px, data.feature.y - py);
+      if (d < this.FEATURE_HOVER_RADIUS && d < bestDist) {
+        best = { id, feature: data.feature };
+        bestDist = d;
+      }
+    }
+    if (best) {
+      this.onFeatureInteract?.(best.feature);
+      this.features.get(best.id)!.state = 'completed';
+    }
   }
   
   protected onRender(): void {
@@ -319,7 +438,8 @@ export class FpRoomRenderer extends BaseRenderer {
       ctx.fillStyle = '#ffffff';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(exit.roomId, x, y + 25 * scale);
+      const label = exit.isZoneGate ? `${exit.roomName} →` : exit.roomName;
+      ctx.fillText(label, x, y + 25 * scale);
     });
   }
 
@@ -393,7 +513,15 @@ export class FpRoomRenderer extends BaseRenderer {
   
   // Keyboard handlers
   private onKeyDown(event: KeyboardEvent): void {
-    this.keysPressed.add(event.key.toLowerCase());
+    const key = event.key.toLowerCase();
+    this.keysPressed.add(key);
+
+    // Queue an immediate interact when E/Space is pressed at a door or a feature
+    if (key === 'e' || key === ' ') {
+      this.interactQueued = true;
+      this.featureInteractQueued = true;
+      event.preventDefault();
+    }
   }
 
   private onKeyUp(event: KeyboardEvent): void {
