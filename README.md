@@ -146,14 +146,28 @@ turbo-game-v2/
 - [x] All 40 threats in data are playable (5 core + 35 zone-specific)
 - [x] Build compiles cleanly, data integrity checks pass
 
-### 🚧 Sprint 4 Next: Polish & Content Wiring
-- [ ] Companion panel ([C] toggle) + companion follow rendering in TP view
-- [ ] Hint/route panel ([H] toggle) + progressive unlock wiring
-- [ ] Zone transition effects (fade/wipe/zoom/slide) between zones
-- [ ] Zone-specific threat mapping (currently only 5 core threat types trigger; wire the other 35)
-- [ ] Game over / victory screens with score (time, items, companions, threats)
-- [ ] Save/load persistence (localStorage)
-- [ ] Playtest + balance pass
+### ✅ Sprint 4 Complete: Polish & Content Wiring
+- [x] Companion panel ([C] toggle) + companion follow rendering in TP view
+- [x] Hint/route panel ([H] toggle) + progressive unlock wiring
+- [x] Zone transition effects (fade-in/out) between zones
+- [x] Game over / victory screens with score (time, items, companions, threats)
+- [x] Save/load persistence (versioned localStorage) + autosave + Continue button
+- [x] Full E2E suite (Playwright: navigation, threats, interactions, endgame, saveload, fuzz)
+
+#### ⚠️ Sprint 4 — Remaining
+- [ ] **Zone-specific threat mapping** — all 40 threats exist in `data.ts`, but zone features only map the 5 core types (traffic, cat, bully, storm, vacuum) in `main.ts`; the other 35 zone-specific threats are never triggered
+- [ ] **Playtest + balance pass** — no formal balance review of happiness decay, threat difficulty, or item values
+- [ ] **Transition variety** — only fade-in/out exists; wipe/zoom/slide effects from the original list are not implemented
+
+### ✅ Sprint 5: Interactions, Minimap & Polish (2026-08-21)
+- [x] E/Space confirm for FP doors, TP threats/gates/NPCs (with "Press E" prompts)
+- [x] Walk-into-wall auto-enter + clockwise exit mapping + moveSpeed fix (FP rooms)
+- [x] Suburban Streets ported fp → tp (open world with gates to all 14 zones)
+- [x] Minimap (MapStore + MapPanel) — explored zones, rooms, elements, [M] toggle + 9 map tests
+- [x] Companion dialogue overlay (speech bubble on meet)
+- [x] HUD polish — measured pill layout, lower-left Status panel (metrics + clues)
+- [x] Spawn-trap safety net (`nudgeAwayFromObstacles()` in tp-engine)
+- [x] 39/39 Playwright tests passing, tsc + vite build clean
 
 ### ✅ Sprint 2.5: Full World Port (v2.1)
 - [x] Ported all 13 v1 side zones (lake, pet_store, dog_show, forest, beach, mountain, garden, library, market, cave, waterfall, park_secret)
