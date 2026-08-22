@@ -25,7 +25,6 @@ import { MapPanel } from './engine/map-panel';
 import { HintPanel } from './engine/hint-panel';
 import { Transitions } from './engine/transitions';
 import { Endgame } from './engine/endgame';
-import { saveGame, loadGame, hasSave, clearSave, applyLoadedState } from './engine/save-load';
 import type { DogId, Zone, Room, Feature, RoomFeature } from './types';
 
 // ===== DOM References =====
@@ -77,15 +76,6 @@ function hintSnapshot() {
     hintsUnlockedCount: s.hintsUnlocked.length,
     routeRevealed: s.routeRevealed,
   };
-}
-
-// Save the current progress (best-effort; never blocks game flow)
-function autosave(): void {
-  try {
-    saveGame(State.getState(), { currentZoneId, currentRoomId });
-  } catch (e) {
-    console.warn('[Turbo] Autosave failed:', (e as Error).message);
-  }
 }
 
 // Input keys owned by main (forwarded to active renderer)
@@ -149,7 +139,6 @@ const onCanvasClick = (e: MouseEvent) => {
       State.activateCompanion(id);
       Audio.playSfx('select');
       companionPanel.refresh(companionSnapshot());
-      autosave();
       e.stopPropagation();
     }
   }
@@ -239,7 +228,6 @@ function init(): void {
     const threat = Object.values(THREATS).find(t => t.name === threatName);
     State.resolveThreat(threatName, success);
     Audio.playSfx(success ? 'bark' : 'select');
-    autosave();
 
     // Manga cutaway for combat threats
     if (threat?.type === 'combat' && canvasEl) {
@@ -253,7 +241,6 @@ function init(): void {
     endgame.hide();
     transitions.cancel();
     State.reset();
-    clearSave();
     inventoryRenderer.hide();
     companionPanel.hide();
     hintPanel.hide();
@@ -261,11 +248,7 @@ function init(): void {
     // Reset dog select UI
     document.querySelectorAll('.dog-card').forEach(c => c.classList.remove('selected'));
     if (startBtn) startBtn.classList.add('hidden');
-    setupContinueButton();
   };
-
-  // Show a Continue button if a save exists
-  setupContinueButton();
 
   // Audio context needs user gesture
   window.addEventListener('click', () => Audio.init(), { once: true });
@@ -302,75 +285,6 @@ function selectDog(dogId: DogId, selectedCard: HTMLElement): void {
   document.querySelectorAll('.dog-card').forEach(c => c.classList.remove('selected'));
   selectedCard.classList.add('selected');
   startBtn?.classList.remove('hidden');
-}
-
-// ===== Continue Game (from save) =====
-let continueBtn: HTMLButtonElement | null = null;
-
-function setupContinueButton(): void {
-  // Remove any existing continue button
-  continueBtn?.remove();
-  continueBtn = null;
-  if (!hasSave() || !dogSelectScreen) return;
-
-  continueBtn = document.createElement('button');
-  continueBtn.id = 'continue-btn';
-  continueBtn.className = 'continue-btn';
-  continueBtn.textContent = '📂 Continue';
-  continueBtn.style.cssText = [
-    'display: block;',
-    'margin: 12px auto 0;',
-    'padding: 12px 28px;',
-    'font-size: 16px;',
-    'font-weight: bold;',
-    'cursor: pointer;',
-    'background: #2a3a5a;',
-    'color: #fff;',
-    'border: 2px solid #4a9eff;',
-    'border-radius: 8px;',
-  ].join(' ');
-  continueBtn.addEventListener('click', continueGame);
-  dogSelectScreen.appendChild(continueBtn);
-}
-
-function continueGame(): void {
-  const loaded = loadGame();
-  if (!loaded) {
-    console.warn('[Turbo] No valid save to continue');
-    return;
-  }
-
-  // Reset state, then apply the saved snapshot on top
-  State.reset();
-  const s = State.getState();
-  s.currentDog = loaded.state.currentDog;
-  s.happiness = loaded.state.happiness;
-  s.inventory = loaded.state.inventory.map(sl => ({ item: sl.item, count: sl.count }));
-  s.activeCompanion = loaded.state.activeCompanion;
-  s.companionsMet = new Set(loaded.state.companionsMet);
-  s.hintsUnlocked = [...loaded.state.hintsUnlocked];
-  s.routeRevealed = loaded.state.routeRevealed;
-  s.itemsCollected = loaded.state.itemsCollected;
-  s.threatsResolved = loaded.state.threatsResolved;
-  s.maxHappiness = loaded.state.maxHappiness;
-  s.startTime = loaded.state.startTime;
-  s.gameOverTime = loaded.state.gameOverTime;
-
-  // Start the loop and enter the saved zone
-  showScreen('playing');
-  startGameLoop();
-
-  const zoneId = loaded.position.currentZoneId ?? 'suburban_streets';
-  const zone = ZONES[zoneId];
-  if (!zone) { enterZone('suburban_streets'); return; }
-
-  // Enter zone, then jump to the saved room if it's an FP zone
-  enterZone(zoneId);
-  if (zone.type === 'fp' && loaded.position.currentRoomId) {
-    const room = zone.rooms?.find(r => r.id === loaded.position.currentRoomId);
-    if (room) enterRoom(room.id);
-  }
-  console.log('[Turbo] Continued from save at', zoneId, loaded.position.currentRoomId);
 }
 
 // ===== Game Start =====
@@ -447,7 +361,6 @@ function enterZone(zoneId: string): void {
   }
 
   State.enterZone(zoneId);
-  autosave();
 
   // Map: record the zone + its discoverable elements
   recordZoneInMap(zone);
@@ -505,7 +418,6 @@ function enterRoom(roomId: string): void {
     activeRenderer = fpRenderer;
   }
   State.enterRoom(roomId);
-  autosave();
   mapStore.setRoom(roomId);
 }
 
@@ -574,7 +486,6 @@ function wireTpRenderer(renderer: TpEngineRenderer, zone: Zone): void {
       State.meetCompanion(companionId);
       showCompanionDialogue(companionId);
       companionPanel.refresh(companionSnapshot());
-      autosave();
     }
   };
 
@@ -636,7 +547,6 @@ function handleFeature(feature: { type: string; item?: string; gate?: string }, 
     State.meetCompanion(companionId);
     showCompanionDialogue(companionId);
     companionPanel.refresh(companionSnapshot());
-    autosave();
     return;
   }
 
@@ -644,7 +554,6 @@ function handleFeature(feature: { type: string; item?: string; gate?: string }, 
   if (feature.item && ITEMS[feature.item]) {
     if (State.collectItem(feature.item)) {
       Audio.playSfx('pickup');
-      autosave();
     }
     return;
   }
@@ -652,7 +561,6 @@ function handleFeature(feature: { type: string; item?: string; gate?: string }, 
   // Home / celebration -> win
   if (ftype === 'home' || ftype === 'celebration') {
     State.gameWin();
-    clearSave();
     showVictory();
     return;
   }
@@ -662,7 +570,6 @@ function handleFeature(feature: { type: string; item?: string; gate?: string }, 
     State.unlockHint(zone.id);
     Audio.playSfx('select');
     hintPanel.refresh(zone, hintSnapshot());
-    autosave();
     return;
   }
 
@@ -742,7 +649,6 @@ function update(delta: number, time: number): void {
   // Check game over
   if (State.happiness <= 0 && currentScreen === 'playing') {
     State.gameOver();
-    clearSave();
     showDefeat();
     return;
   }

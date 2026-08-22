@@ -151,8 +151,9 @@ turbo-game-v2/
 - [x] Hint/route panel ([H] toggle) + progressive unlock wiring
 - [x] Zone transition effects (fade-in/out) between zones
 - [x] Game over / victory screens with score (time, items, companions, threats)
-- [x] Save/load persistence (versioned localStorage) + autosave + Continue button
-- [x] Full E2E suite (Playwright: navigation, threats, interactions, endgame, saveload, fuzz)
+- [x] Full E2E suite (Playwright: navigation, threats, interactions, endgame, fuzz)
+
+> Note: save/load persistence was implemented in Sprint 4, then intentionally removed on 2026-08-22 (no more Continue button or autosave).
 
 #### ⚠️ Sprint 4 — Remaining
 - [ ] **Zone-specific threat mapping** — all 40 threats exist in `data.ts`, but zone features only map the 5 core types (traffic, cat, bully, storm, vacuum) in `main.ts`; the other 35 zone-specific threats are never triggered
