@@ -157,7 +157,7 @@ turbo-game-v2/
 
 #### ⚠️ Sprint 4 — Remaining
 - [x] **Zone-specific threat mapping** — ✅ COMPLETED 2026-08-22: all 40 threats now triggerable via zone `threat` (auto on entry), `doorThreat` (E/Space at FP exit door), `legacyThreat` (zone-aware core features), and feature `threat` (confirm-gated objects). See `tests/zone-threats.spec.ts` (6 tests).
-- [ ] **Playtest + balance pass** — no formal balance review of happiness decay, threat difficulty, or item values
+- [x] **Playtest + balance pass** — ✅ COMPLETED 2026-08-23: threat rewards/penalties tuned (success +10, fail -15), useItem applies category effects internally, decay reads config + companion bonus (0.9x), fresh-run reset. See `tests/balance.spec.ts` (5 tests).
 - [ ] **Transition variety** — only fade-in/out exists; wipe/zoom/slide effects from the original list are not implemented
 
 ### ✅ Sprint 5: Interactions, Minimap & Polish (2026-08-21)
