@@ -181,6 +181,16 @@ turbo-game-v2/
 
 ---
 
+### 📋 Sprint 6: Audio, Testing & Stability (proposed)
+- [ ] **Real audio** — replace procedural oscillators with layered music beds per zone (ambient + event layers), real SFX for bark/footsteps/item pickup/threat start-success-fail, and audio ducking (lower music during threat minigames + companion dialogue). The `audio.ts` engine already has the structure (per-name SFX generator, looping music nodes); it needs real sources, a mix bus, and gain automation. *(README: "Real audio files can be added in Sprint 5+")*
+- [ ] **Unit test layer** — README promises "Unit tests will be added in Sprint 3+" but there are zero; all 9 test files are Playwright E2E. Add a vitest suite for the pure-logic modules: `engine/state.ts` (selectDog, collectItem, modifyHappiness, useItem, resolveThreat, companion bonus), `engine/transitions.ts` (phase machine, cancel, midpoint fires once), `engine/threats.ts` (tuneDifficulty, intro→active→done), and `data.ts` integrity (every zone/threat/item id referenced resolves). Target: sub-10s feedback loop vs. the ~4min E2E run.
+- [ ] **`search` zone type** — `main.ts:408` has a live fallback: `// 'search' type — not implemented in v2 yet`. Decide: implement a proper search/minesweeper-style zone renderer, or remove the dead `ZoneType` value from `types.ts` so the type is honest.
+- [ ] **Long-session stability pass** — verify no RAF/canvas/context leaks across zone swaps, no growing listener count after many navigate/cancel cycles, and a 10-min idle soak with no drift in happiness decay or frame timing. (E2E is slow partly from per-test idling; a stability profile will confirm the game holds up in a real session.)
+- [ ] **Content & companion coverage** — verify all 15 companions trigger + dialogue in-flow, confirm item rarity categories (clue/key/collectible/crafting/quest/rare) are actually reachable in a run, and fill any zones that still feel bare of interactables.
+- [ ] **Build & perf budget** — `tsc` + `vite build` clean, bundle under a stated size cap, first-paint and zone-swap under a stated frame budget. Add a `scripts/perf-check.ts` that loads the app, navigates every zone once, and reports worst-case frame time.
+
+> Sprint 6 is the "make it feel finished + make it provably correct" sprint. Real audio is the biggest *feel* gap; the unit layer is the biggest *engineering* gap. Both are self-contained and low-risk.
+
 ## Development Notes
 
 ### Path Alias (`@/`)
