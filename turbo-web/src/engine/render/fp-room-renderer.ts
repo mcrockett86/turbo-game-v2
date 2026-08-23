@@ -41,11 +41,18 @@ export class FpRoomRenderer extends BaseRenderer {
   private readonly DOOR_HOVER_RADIUS = 40; // world units
   private readonly DOOR_TOUCH_HOLD_S = 0.4; // hold-to-enter time at a wall
 
+  // Zone-specific threat that fires when confirming (E/Space) at the zone's exit door
+  private doorThreatId: string | null = null;
+  setDoorThreat(threatId: string | null): void {
+    this.doorThreatId = threatId;
+  }
+
   // Callbacks
   onFeatureClick?: (featureId: string) => void;
   onFeatureInteract?: (feature: RoomFeature) => void;
   onExitClick?: (roomId: string) => void;
   onExitInteract?: (roomId: string) => void;
+  onDoorThreat?: (threatId: string) => void;
 
   private readonly FEATURE_HOVER_RADIUS = 24; // world units to be "at" a feature
   private featureInteractQueued = false; // E/Space tapped while at a feature
@@ -203,11 +210,17 @@ export class FpRoomRenderer extends BaseRenderer {
 
     const shouldEnter = this.interactKeyHeld() || this.interactQueued || this.doorTouchTime >= this.DOOR_TOUCH_HOLD_S;
     if (shouldEnter) {
-      this.interactQueued = false;
       this.doorTouchTime = 0;
-      const exitId = nearest.roomId;
-      // Reset so we don't double-fire on the next frame before the room swaps
       this.doorTouchExit = null;
+      // E/Space while a door-threat is active -> trigger the threat (stay in this room)
+      if (this.interactKeyHeld() && this.doorThreatId) {
+        this.interactQueued = false;
+        this.onDoorThreat?.(this.doorThreatId);
+        this.doorThreatId = null; // one-shot
+        return;
+      }
+      this.interactQueued = false;
+      const exitId = nearest.roomId;
       this.onExitInteract?.(exitId);
     }
   }

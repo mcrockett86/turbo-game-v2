@@ -74,6 +74,10 @@ export interface Zone {
   hint: string;
   companions?: string[]; // Companion IDs available in this zone
   returnZone?: string;
+  threat?: string; // zone-specific threat ID (from THREATS) triggered when entering the zone
+  threatKind?: ThreatKind; // threat-category for HUD warning display
+  legacyThreat?: string; // threat ID for legacy core-type features (traffic/cat/bully/storm/vacuum) in this zone
+  doorThreat?: string; // threat ID triggered at the zone's exit door (FP zones)
   skyColor?: string;
   groundColor?: string;
   dogColor?: string;
@@ -150,6 +154,7 @@ export interface Feature {
   label: string;
   item?: string; // optional item to pick up on interact
   gate?: string; // optional target zone id for hub gates
+  threat?: string; // optional threat ID (from THREATS) triggered on interact
 }
 
 // ===== Item Types =====
@@ -172,6 +177,9 @@ export type ItemId = string; // e.g., 'bone', 'treat', 'key'
 // ===== Threat Types =====
 
 export type ThreatType = 'timing' | 'combat' | 'sneak' | 'comfort';
+
+/** Which threat-type mini-games can occur in a zone (for HUD warning display). */
+export type ThreatKind = ThreatType | 'hazard';
 
 export interface Threat {
   name: string;

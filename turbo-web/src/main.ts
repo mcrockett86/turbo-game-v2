@@ -224,10 +224,17 @@ function init(): void {
   };
 
   // Wire threat manager to State + manga
-  threatManager.onResolve = (threatName, success) => {
-    const threat = Object.values(THREATS).find(t => t.name === threatName);
-    State.resolveThreat(threatName, success);
+  let activeThreatType: string | null = null;
+  const setActiveThreatType = (t: string | null) => { activeThreatType = t; };
+  threatManager.onStart = (threat: { type: string }) => { setActiveThreatType(threat.type); };
+  threatManager.onStateChange = (phase, threat) => {
+    if (!threat) setActiveThreatType(null);
+  };
+  threatManager.onResolve = (threatId, success) => {
+    const threat = THREATS[threatId];
+    State.resolveThreat(threatId, success);
     Audio.playSfx(success ? 'bark' : 'select');
+    setActiveThreatType(null);
 
     // Manga cutaway for combat threats
     if (threat?.type === 'combat' && canvasEl) {
@@ -235,6 +242,8 @@ function init(): void {
       mangaOverlay.onDone = () => { /* manga finished, nothing else to do */ };
     }
   };
+  // HUD: live threat mini-game type for the warning border
+  hudRenderer.setActiveThreatType = setActiveThreatType;
 
   // Endgame restart -> full reset back to dog select
   endgame.onRestart = () => {
@@ -298,6 +307,15 @@ function startAdventure(): void {
   startGameLoop();
 }
 
+// Trigger a zone-specific threat (from zone data or a door threat)
+function triggerZoneThreat(threatId: string): void {
+  const threat = THREATS[threatId];
+  if (!threat) { console.warn(`[Turbo] Unknown threat id: ${threatId}`); return; }
+  if (threatManager.isBusy || mangaOverlay.isPlaying) return; // one threat at a time
+  Audio.playSfx('bark');
+  threatManager.start(threat);
+}
+
 // ===== Zone / Room Routing =====
 function enterZone(zoneId: string): void {
   const zone = ZONES[zoneId];
@@ -319,6 +337,14 @@ function enterZone(zoneId: string): void {
 
   // Enter the entrance room (or first room)
   const entranceRoom = zone.rooms?.find(r => r.isEntrance) ?? zone.rooms?.[0];
+
+  // Zone-specific threat: auto-triggers on zone entry (Sprint 4 zone threat mapping)
+  if (zone.threat) {
+    // Slight delay so the transition/first frame settles before the minigame grabs input
+    setTimeout(() => {
+      if (currentZoneId === zone.id && currentScreen === 'playing') triggerZoneThreat(zone.threat as string);
+    }, 600);
+  }
 
   if (zone.type === 'fp') {
     const firstRoomId = entranceRoom?.id ?? zone.rooms?.[0]?.id;
@@ -419,6 +445,9 @@ function enterRoom(roomId: string): void {
   }
   State.enterRoom(roomId);
   mapStore.setRoom(roomId);
+  // Refresh door threat for the new room (one-shot per zone entry)
+  const zone2 = ZONES[currentZoneId ?? ''];
+  if (fpRenderer) fpRenderer.setDoorThreat(zone2?.doorThreat ?? null);
 }
 
 function disposeActiveRenderer(): void {
@@ -454,6 +483,10 @@ function wireFpRenderer(renderer: FpRoomRenderer, zone: Zone): void {
   renderer.onExitInteract = (exitRoomId: string) => {
     navigateToExit(exitRoomId, zone);
   };
+
+  // Zone-specific door threat: E/Space at the entrance-room exit wall fires it
+  if (zone.doorThreat) renderer.setDoorThreat(zone.doorThreat);
+  renderer.onDoorThreat = (threatId: string) => triggerZoneThreat(threatId);
 }
 
 /**
@@ -506,7 +539,7 @@ function showCompanionDialogue(companionId: string): void {
   dialogueOverlay.show(companion.name, line, companion.color, companion.accentColor);
 }
 
-function handleFeature(feature: { type: string; item?: string; gate?: string }, zone: Zone): void {
+function handleFeature(feature: { type: string; item?: string; gate?: string; threat?: string }, zone: Zone): void {
   const ftype = feature.type;
 
   // Zone gate (a feature carrying a `gate` target zone) — hub navigation
@@ -522,21 +555,23 @@ function handleFeature(feature: { type: string; item?: string; gate?: string }, 
     return;
   }
 
-  // Threat triggers
-  const threatMap: Record<string, string> = {
-    traffic: 'Traffic',
-    cat: 'Mean Cat',
-    bully: 'Bully Dog',
-    storm: 'Thunderstorm',
-    vacuum: 'Vacuum Monster',
+  // Threat triggers — by explicit threat id first (zone-specific + feature threat),
+  // then fall back to a zone-aware legacy core-type map.
+  const threatId = feature.threat;
+  if (threatId) {
+    triggerZoneThreat(threatId);
+    return;
+  }
+  const coreMap: Record<string, string> = {
+    traffic: 'traffic',
+    cat: 'cat',
+    bully: 'bully',
+    storm: 'storm',
+    vacuum: 'vacuum',
   };
-  const threatName = threatMap[ftype];
-  if (threatName) {
-    const threat = Object.values(THREATS).find(t => t.name === threatName);
-    if (threat) {
-      Audio.playSfx('bark');
-      threatManager.start(threat);
-    }
+  const legacyId = coreMap[ftype];
+  if (legacyId) {
+    triggerZoneThreat(zone.legacyThreat ?? legacyId);
     return;
   }
 

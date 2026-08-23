@@ -438,11 +438,13 @@ export const ZONES: Record<string, Zone> = {
       { type: 'hint', x: -8, z: -4, id: 'street_map', label: '🐾 Scent Mark', item: 'map_fragment' },
       { type: 'treasure', x: 7, z: -4, id: 'street_ticket', label: '🎫 Pet Shop Scent', item: 'pet_shop_ticket' },
       { type: 'treasure', x: 15, z: -5, id: 'street_pinecone', label: '🌲 Trail Mark', item: 'pinecone' },
+      { type: 'mailbox', x: -11, z: -8, id: 'street_icecream', label: '🍦 Ice Cream Truck', threat: 'ice_cream_truck' },
       { type: 'treasure', x: -9, z: 12, id: 'street_compass', label: '🗺️ Trail', item: 'compass_fragment' },
       { type: 'treasure', x: 14, z: 7, id: 'street_stone', label: '💧 Splash', item: 'lake_stone' },
-      // Threats (kept from the old rooms)
+      // Threats (kept from the old rooms + zone-specific)
       { type: 'traffic', x: 11, z: -6, id: 'street_traffic', label: '🚗 Traffic' },
       { type: 'cat', x: -12, z: -4, id: 'street_cat', label: '🐱 Mean Cat' },
+      { type: 'mailbox', x: -10, z: 8, id: 'street_mail', label: '📬 Mail Carrier', threat: 'mailman' },
       // Gates to every other zone (spread around the hub)
       { type: 'gate', x: 8, z: 3, id: 'gate_dog_park', label: '🌳 Dog Park', gate: 'dog_park' },
       { type: 'gate', x: -15, z: -2, id: 'gate_shelter', label: '🏥 Shelter', gate: 'shelter' },
@@ -463,6 +465,8 @@ export const ZONES: Record<string, Zone> = {
     hint: 'You see a squirrel. It reminds you of... something. A yard? With squirrels? The gates all lead somewhere — follow the one that smells like home.'
   },
   dog_park: {
+    threat: 'ice_cream_truck',
+    threatKind: 'comfort',
     id: 'dog_park',
     name: '🌳 Dog Park',
     desc: 'A bright, open space. Other dogs are everywhere!',
@@ -513,15 +517,19 @@ export const ZONES: Record<string, Zone> = {
     ],
     features: [
       { type: 'water_bowl', x: 6, z: 3, id: 'water_bowl', label: '💧 Water Bowl' },
+      { type: 'mailbox', x: -6, z: 6, id: 'park_hydrant', label: '🚒 Storm Drain', threat: 'storm_sewer' },
       { type: 'fire_hydrant', x: -5, z: -2, id: 'fire_hydrant', label: '🚒 Fire Hydrant' },
       { type: 'scent_post', x: 0, z: 7, id: 'scent_post', label: '🐾 Scent Post' },
       { type: 'treasure', x: -7, z: 5, id: 'treasure_1', label: '✨ Scent Clue' },
+      { type: 'mailbox', x: 5, z: 5, id: 'park_squirrel', label: '🐿️ Squirrel Army', threat: 'park_squirrel' },
       { type: 'return_gate', x: 0, z: -8, id: 'park_exit', label: '🚪 Exit to Streets' },
     ],
     returnZone: 'suburban_streets',
     hint: 'A big dog says "Home is where the fence is." Fences are everywhere... but which fence?',
   },
   apartment: {
+    threat: 'storm',
+    threatKind: 'comfort',
     id: 'apartment',
     name: '🏠 Random Apartment',
     desc: 'You found the door open. Inside: smells, sounds, and a TV that barks back.',
@@ -539,6 +547,8 @@ export const ZONES: Record<string, Zone> = {
     returnZone: 'suburban_streets',
   },
   shelter: {
+    threat: 'vacuum',
+    threatKind: 'sneak',
     id: 'shelter',
     name: '🏥 Animal Shelter',
     desc: 'Cages, sounds, and hope. Maybe some dogs here know the way home.',
@@ -558,6 +568,8 @@ export const ZONES: Record<string, Zone> = {
     returnZone: 'suburban_streets',
   },
   neighborhood: {
+    threat: 'bully',
+    threatKind: 'combat',
     id: 'neighborhood',
     name: '🏡 The Neighborhood',
     desc: 'The streets feel familiar. You\'re close. You can feel it.',
@@ -576,6 +588,8 @@ export const ZONES: Record<string, Zone> = {
     returnZone: 'suburban_streets',
   },
   home: {
+    threat: 'earthquake',
+    threatKind: 'timing',
     id: 'home',
     name: '🏡 Home',
     desc: 'You made it! The golden gate stands before you. This is where you belong.',
@@ -591,6 +605,9 @@ export const ZONES: Record<string, Zone> = {
   },
   // New zones
   lake: {
+    threat: 'flood',
+    threatKind: 'sneak',
+    doorThreat: 'lake_ripple',
     id: 'lake',
     name: '🌊 The Lake',
     desc: 'A peaceful lake surrounded by trees. The water sparkles in the sunlight.',
@@ -628,6 +645,7 @@ export const ZONES: Record<string, Zone> = {
       { type: 'water', x: 0, z: 0, id: 'lake_center', label: '🌊 Lake Center' },
       { type: 'scent_post', x: -6, z: 5, id: 'lake_scent', label: '🐾 Scent Post' },
       { type: 'treasure', x: 7, z: -6, id: 'lake_treasure', label: '✨ Hidden Treasure' },
+      { type: 'trap', x: -6, z: 6, id: 'lake_monster', label: '🐉 Lake Monster', threat: 'lake_monster' },
       { type: 'bridge', x: 5, z: 3, id: 'wooden_bridge', label: '🌉 Wooden Bridge' },
       { type: 'return_gate', x: 0, z: -8, id: 'lake_exit', label: '🚪 Exit to Streets' },
     ],
@@ -635,6 +653,8 @@ export const ZONES: Record<string, Zone> = {
     hint: 'The water sparkles. You remember swimming here once. With your human.',
   },
   pet_store: {
+    threat: 'pet_shop_bell',
+    threatKind: 'timing',
     id: 'pet_store',
     name: '🏪 Pet Paradise',
     desc: 'A colorful pet shop filled with treats, toys, and friendly animals.',
@@ -651,6 +671,9 @@ export const ZONES: Record<string, Zone> = {
     hint: 'The smell of treats is overwhelming. Your human used to bring you here!',
   },
   dog_show: {
+    threat: 'dog_show_judge',
+    threatKind: 'timing',
+    doorThreat: 'dog_show_roar',
     id: 'dog_show',
     name: '🏆 Dog Show Arena',
     desc: 'A grand arena where dogs compete for glory. The air is filled with excitement.',
@@ -689,6 +712,7 @@ export const ZONES: Record<string, Zone> = {
       { type: 'dog_show', x: 0, z: 0, id: 'show_ring', label: '🏆 Show Ring' },
       { type: 'scent_post', x: -8, z: 6, id: 'show_scent', label: '🐾 Scent Post' },
       { type: 'treasure', x: 9, z: -7, id: 'show_treasure', label: '✨ Trophy Case' },
+      { type: 'mailbox', x: -8, z: -6, id: 'show_roar', label: '📢 Roaring Crowd', threat: 'dog_show_roar' },
       { type: 'lure', x: 6, z: 4, id: 'treat_lure', label: '🍖 Treat Lure' },
       { type: 'return_gate', x: 0, z: -8, id: 'show_exit', label: '🚪 Exit to Streets' },
     ],
@@ -696,6 +720,8 @@ export const ZONES: Record<string, Zone> = {
     hint: 'The roar of the crowd excites you. You remember winning here once.',
   },
   forest: {
+    threat: 'forest_wolf',
+    threatKind: 'combat',
     id: 'forest',
     name: '🌲 The Deep Forest',
     desc: 'A dense forest with towering trees. Sunlight filters through the canopy.',
@@ -733,6 +759,7 @@ export const ZONES: Record<string, Zone> = {
     features: [
       { type: 'fountain', x: 0, z: 0, id: 'forest_fountain', label: '💧 Forest Spring' },
       { type: 'scent_post', x: -9, z: 7, id: 'forest_scent', label: '🐾 Scent Post' },
+      { type: 'trap', x: -8, z: -5, id: 'forest_thorn', label: '🌵 Forest Thorns', threat: 'forest_thorn' },
       { type: 'treasure', x: 8, z: -8, id: 'forest_treasure', label: '✨ Cave Entrance' },
       { type: 'lure', x: 5, z: 6, id: 'forest_lure', label: '🍖 Food Scent' },
       { type: 'return_gate', x: 0, z: -8, id: 'forest_exit', label: '🚪 Exit to Streets' },
@@ -742,6 +769,9 @@ export const ZONES: Record<string, Zone> = {
     hint: 'The forest smells like home. Your human used to bring you here for walks.',
   },
   beach: {
+    threat: 'beach_wave',
+    threatKind: 'timing',
+    doorThreat: 'beach_crab',
     id: 'beach',
     name: '🏖️ Sandy Beach',
     desc: 'A wide sandy beach with crashing waves. Seagulls cry overhead.',
@@ -785,6 +815,9 @@ export const ZONES: Record<string, Zone> = {
     hint: 'The sand feels familiar. Your human used to throw the ball here.',
   },
   mountain: {
+    threat: 'mountain_rockfall',
+    threatKind: 'timing',
+    doorThreat: 'mountain_goat',
     id: 'mountain',
     name: '⛰️ Mountain Peak',
     desc: 'A towering mountain with rocky paths. The view from the top is breathtaking.',
@@ -821,6 +854,7 @@ export const ZONES: Record<string, Zone> = {
       { type: 'fountain', x: 0, z: 0, id: 'mountain_spring', label: '💧 Mountain Spring' },
       { type: 'scent_post', x: -8, z: 7, id: 'mountain_scent', label: '🐾 Scent Post' },
       { type: 'treasure', x: 9, z: -8, id: 'mountain_treasure', label: '✨ Cave Treasure' },
+      { type: 'trap', x: -9, z: 7, id: 'mt_goat', label: '🐐 Mountain Goat', threat: 'mountain_goat' },
       { type: 'lure', x: 6, z: 6, id: 'mountain_lure', label: '🍖 Food Scent' },
       { type: 'return_gate', x: 0, z: -8, id: 'mountain_exit', label: '🚪 Exit to Streets' },
     ],
@@ -828,6 +862,9 @@ export const ZONES: Record<string, Zone> = {
     hint: 'The mountain air is crisp. Your human used to hike here with you.',
   },
   garden: {
+    threat: 'garden_hose',
+    threatKind: 'sneak',
+    doorThreat: 'garden_snake',
     id: 'garden',
     name: '🌺 Secret Garden',
     desc: 'A hidden garden filled with beautiful flowers and peaceful paths.',
@@ -844,6 +881,9 @@ export const ZONES: Record<string, Zone> = {
     returnZone: 'suburban_streets',
   },
   library: {
+    threat: 'library_silent',
+    threatKind: 'comfort',
+    doorThreat: 'library_boo',
     id: 'library',
     name: '📚 Old Library',
     desc: 'A quiet library filled with books and mysterious secrets.',
@@ -860,6 +900,9 @@ export const ZONES: Record<string, Zone> = {
     returnZone: 'suburban_streets',
   },
   market: {
+    threat: 'market_fire',
+    threatKind: 'timing',
+    doorThreat: 'market_chase',
     id: 'market',
     name: '🏪 Town Market',
     desc: 'A bustling market with vendors selling treats, toys, and more.',
@@ -876,6 +919,9 @@ export const ZONES: Record<string, Zone> = {
     returnZone: 'suburban_streets',
   },
   cave: {
+    threat: 'raccoon',
+    threatKind: 'combat',
+    doorThreat: 'treasure_guardian',
     id: 'cave',
     name: '🕳️ Crystal Cave',
     desc: 'A mysterious cave filled with glowing crystals and ancient secrets.',
@@ -891,6 +937,9 @@ export const ZONES: Record<string, Zone> = {
     returnZone: 'suburban_streets',
   },
   waterfall: {
+    threat: 'owl',
+    threatKind: 'comfort',
+    doorThreat: 'deer',
     id: 'waterfall',
     name: '💧 Waterfall Falls',
     desc: 'A majestic waterfall cascading into a peaceful pool below.',
@@ -928,12 +977,16 @@ export const ZONES: Record<string, Zone> = {
       { type: 'scent_post', x: -7, z: 6, id: 'waterfall_scent', label: '🐾 Scent Post' },
       { type: 'treasure', x: 8, z: -7, id: 'waterfall_treasure', label: '✨ Hidden Treasure' },
       { type: 'lure', x: 5, z: 5, id: 'waterfall_lure', label: '🍖 Fish Scent' },
+      { type: 'mailbox', x: -6, z: -4, id: 'wf_owl', label: '🦉 Night Owl', threat: 'owl' },
       { type: 'return_gate', x: 0, z: -8, id: 'waterfall_exit', label: '🚪 Exit to Streets' },
     ],
     returnZone: 'suburban_streets',
     hint: 'The sound of the waterfall is soothing. You remember playing here with your human.',
   },
   park_secret: {
+    threat: 'treasure_guardian',
+    threatKind: 'combat',
+    doorThreat: 'park_tornado',
     id: 'park_secret',
     name: '🌙 Secret Park',
     desc: 'A hidden park that only appears at night. Full of magical surprises.',
@@ -970,6 +1023,7 @@ export const ZONES: Record<string, Zone> = {
       { type: 'fountain', x: 0, z: 0, id: 'secret_fountain', label: '🌙 Moon Fountain' },
       { type: 'scent_post', x: -8, z: 6, id: 'secret_scent', label: '🐾 Scent Post' },
       { type: 'treasure', x: 9, z: -8, id: 'secret_treasure', label: '✨ Moon Treasure' },
+      { type: 'trap', x: -6, z: -6, id: 'secret_tornado', label: '🌪️ Park Tornado', threat: 'park_tornado' },
       { type: 'lure', x: 6, z: 6, id: 'secret_lure', label: '🍖 Moon Treat' },
       { type: 'return_gate', x: 0, z: -8, id: 'park_secret_exit', label: '🚪 Exit to Streets' },
     ],

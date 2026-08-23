@@ -81,11 +81,13 @@ export class ThreatManager extends BaseRenderer {
   // Callbacks
   onResolve?: (threatId: string, success: boolean) => void;
   onStateChange?: (phase: ThreatPhase, threat: Threat | null) => void;
+  onStart?: (threat: Threat) => void;
 
   // ===== API =====
 
   /** Start a threat mini-game. Threat must come from the THREATS data. */
   start(threat: Threat): void {
+    this.onStart?.(threat);
     this.currentThreat = threat;
     this.currentType = threat.type;
     this.phase = 'intro';

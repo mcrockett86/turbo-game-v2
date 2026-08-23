@@ -324,9 +324,10 @@ export class TpEngineRenderer extends BaseRenderer {
   // ===== Interactions =====
 
   /** Threat + gate feature types that require an E/Space confirm (not auto on touch). */
-  private static readonly CONFIRM_TYPES = new Set<FeatureType>([
-    'traffic', 'cat', 'bully', 'storm', 'vacuum', // threats
-    'gate', 'return_gate', 'locked_door', 'door',  // gates / doors
+  private static readonly CONFIRM_TYPES: Set<string> = new Set([
+    'traffic', 'cat', 'bully', 'storm', 'vacuum', // core threat types
+    'mailbox', 'trap',                            // zone-specific threat features
+    'gate', 'return_gate', 'locked_door', 'door', // gates / doors
   ]);
 
   private isConfirmable(feature: Feature): boolean {

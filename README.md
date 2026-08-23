@@ -156,7 +156,7 @@ turbo-game-v2/
 > Note: save/load persistence was implemented in Sprint 4, then intentionally removed on 2026-08-22 (no more Continue button or autosave).
 
 #### ⚠️ Sprint 4 — Remaining
-- [ ] **Zone-specific threat mapping** — all 40 threats exist in `data.ts`, but zone features only map the 5 core types (traffic, cat, bully, storm, vacuum) in `main.ts`; the other 35 zone-specific threats are never triggered
+- [x] **Zone-specific threat mapping** — ✅ COMPLETED 2026-08-22: all 40 threats now triggerable via zone `threat` (auto on entry), `doorThreat` (E/Space at FP exit door), `legacyThreat` (zone-aware core features), and feature `threat` (confirm-gated objects). See `tests/zone-threats.spec.ts` (6 tests).
 - [ ] **Playtest + balance pass** — no formal balance review of happiness decay, threat difficulty, or item values
 - [ ] **Transition variety** — only fade-in/out exists; wipe/zoom/slide effects from the original list are not implemented
 

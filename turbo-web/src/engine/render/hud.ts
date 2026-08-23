@@ -14,12 +14,14 @@
 import { BaseRenderer } from './base-renderer';
 
 export class HUDRenderer extends BaseRenderer {
+  activeThreatType: string | null = null; // set by main.ts via setActiveThreatType provider
   getDogName?: () => string;
   getHappiness?: () => number; // 0-100
   getZoneName?: () => string;
   getItemCount?: () => number;
   getCompanionName?: () => string | null;
   isThreatActive?: () => boolean;
+  setActiveThreatType?: (type: string | null) => void; // live threat mini-game type (timing/combat/sneak/comfort)
   // Status panel data (lower-left)
   getMetrics?: () => {
     happiness: number;
@@ -128,6 +130,17 @@ export class HUDRenderer extends BaseRenderer {
       ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() / 150);
       ctx.strokeRect(3, 3, W - 6, H - 6);
       ctx.globalAlpha = 1;
+      const ttype = this.activeThreatType;
+      if (ttype) {
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        const label = `⚔️ ${ttype}`.toUpperCase();
+        ctx.font = 'bold 13px sans-serif';
+        const tw = ctx.measureText(label).width + 20;
+        ctx.fillRect(W / 2 - tw / 2, 4, tw, 24);
+        ctx.fillStyle = '#ffd0d0';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, W / 2, 21);
+      }
     }
 
     // ===== Top HUD: measure first, then place with guaranteed gaps =====
