@@ -59,6 +59,8 @@ export interface DialogLines {
   foundFriend: string;
 }
 
+import type { TransitionKind } from './engine/transitions';
+
 // ===== Zone & Room Types =====
 
 export interface Zone {
@@ -78,6 +80,7 @@ export interface Zone {
   threatKind?: ThreatKind; // threat-category for HUD warning display
   legacyThreat?: string; // threat ID for legacy core-type features (traffic/cat/bully/storm/vacuum) in this zone
   doorThreat?: string; // threat ID triggered at the zone's exit door (FP zones)
+  transition?: TransitionKind; // zone transition style on entry (default 'fade')
   skyColor?: string;
   groundColor?: string;
   dogColor?: string;

@@ -318,6 +318,20 @@ function triggerZoneThreat(threatId: string): void {
 }
 
 // ===== Zone / Room Routing =====
+
+/** Start a zone transition overlay. Swaps the zone at the midpoint. */
+function playZoneTransition(zoneId: string, onSwap: () => void): void {
+  const zone = ZONES[zoneId];
+  const kind = zone?.transition ?? 'fade';
+  // First zone of a run: no prior scene to hide, just swap immediately.
+  if (!activeRenderer) { onSwap(); return; }
+  transitions.play(kind, onSwap, 500, { direction: 'right', color: '#0a0a0a' });
+}
+
+/** Public entry point: records the zone immediately (map/state), then plays a
+ *  transition that swaps the renderer at the midpoint. This keeps the map and
+ *  game state consistent with the player's intent, even while the animation
+ *  is still covering the old scene. */
 function enterZone(zoneId: string): void {
   const zone = ZONES[zoneId];
   if (!zone) {
@@ -325,8 +339,24 @@ function enterZone(zoneId: string): void {
     return;
   }
 
-  disposeActiveRenderer();
+  // Record immediately so the map, state, and HUD reflect the new zone at once
   currentZoneId = zoneId;
+  State.enterZone(zoneId);
+  recordZoneInMap(zone);
+
+  // Animate the visual swap (renderer + audio) at the midpoint
+  playZoneTransition(zoneId, () => performZoneEntry(zoneId));
+}
+
+/** Core zone-entry logic: swap renderer + start audio (called at transition midpoint). */
+function performZoneEntry(zoneId: string): void {
+  const zone = ZONES[zoneId];
+  if (!zone) {
+    console.error(`[Turbo] Unknown zone: ${zoneId}`);
+    return;
+  }
+
+  disposeActiveRenderer();
 
   // Audio is best-effort — never let it break game flow
   try {
@@ -386,11 +416,6 @@ function enterZone(zoneId: string): void {
       activeRenderer = fpRenderer;
     }
   }
-
-  State.enterZone(zoneId);
-
-  // Map: record the zone + its discoverable elements
-  recordZoneInMap(zone);
 
   console.log(`[Turbo] Entered zone: ${zone.name} (type=${zone.type})`);
 }
@@ -747,6 +772,8 @@ function update(delta: number, time: number): void {
   get itemsCollected() { return State.getState().itemsCollected; },
   get threatsResolved() { return State.getState().threatsResolved; },
   threatManager, // direct handle for test-only resolve/inspection
+  transitions, // direct handle for test-only transition inspection
+  ZONES, // zone data for test inspection
   state: () => State.getState(),
   useItem: (id: string) => State.useItem(id),
   giveItem: (id: string) => {
