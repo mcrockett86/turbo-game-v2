@@ -37,9 +37,11 @@ export const ZONE_TRANSITIONS = {
 export const HAPPINESS = {
   MAX: 100,
   MIN: 0,
-  DECAY_PER_SECOND: 0.5, // base decay rate
-  COMFORT_ITEM_RESTORE: 15,
-  COMPANION_BONUS_MULTIPLIER: 0.9, // companions reduce decay by 10%
+  DECAY_PER_SECOND: 0.5, // base decay rate (200s of idle from full — deliberate long-session pacing)
+  COMFORT_ITEM_RESTORE: 15, // used by comfort-category items
+  COMPANION_BONUS_MULTIPLIER: 0.9, // active companion reduces decay by 10%
+  THREAT_SUCCESS_REWARD: 10, // happiness reward for resolving a threat
+  THREAT_FAIL_PENALTY: 15,   // happiness penalty for failing a threat (was 20 — too punishing for 4 threats/zone)
 } as const;
 
 // ===== Inventory System =====

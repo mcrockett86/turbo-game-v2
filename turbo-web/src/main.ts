@@ -12,6 +12,7 @@
 import { State } from './engine/state';
 import { Audio } from './engine/audio';
 import { DOGS, ZONES, ITEMS, COMPANIONS, THREATS } from './data';
+import { HAPPINESS } from './config';
 import { FpRoomRenderer } from './engine/render/fp-room-renderer';
 import { TpEngineRenderer } from './engine/render/tp-engine';
 import { ThreatManager } from './engine/threats';
@@ -174,10 +175,9 @@ function init(): void {
   inventoryRenderer.getSlots = () => State.getState().inventory as any;
   inventoryRenderer.getItem = (id) => ITEMS[id];
   inventoryRenderer.onUseItem = (itemId) => {
-    if (State.getState().inventory.find(s => s.item === itemId)) {
-      State.useItem(itemId);
-      Audio.playSfx('pickup');
-    }
+    if (!State.getState().inventory.find(s => s.item === itemId)) return;
+    State.useItem(itemId); // applies category effects internally (comfort/food → +15)
+    Audio.playSfx('pickup');
   };
 
   // Wire HUD to State
@@ -298,6 +298,7 @@ function selectDog(dogId: DogId, selectedCard: HTMLElement): void {
 
 // ===== Game Start =====
 function startAdventure(): void {
+  State.reset(); // fresh run: happiness 100, empty inventory, no companions (save/load removed)
   Audio.playSfx('bark');
   showScreen('playing');
   enterZone('suburban_streets');
@@ -676,9 +677,10 @@ function startGameLoop(): void {
 function update(delta: number, time: number): void {
   if (currentScreen !== 'playing') return;
 
-  // Happiness decay (only when not in a threat)
+  // Happiness decay (only when not in a threat) — rate from config, companion bonus applied
   if (!threatManager.isBusy && State.happiness > 0) {
-    State.modifyHappiness(-0.5 * delta);
+    const decay = HAPPINESS.DECAY_PER_SECOND * (State.getState().activeCompanion ? HAPPINESS.COMPANION_BONUS_MULTIPLIER : 1);
+    State.modifyHappiness(-decay * delta);
   }
 
   // Check game over
@@ -744,6 +746,17 @@ function update(delta: number, time: number): void {
   get map() { return mapStore.zones().map((z) => ({ id: z.id, explored: z.explored, current: z.current, elements: z.elements.length, rooms: z.rooms })); },
   get itemsCollected() { return State.getState().itemsCollected; },
   get threatsResolved() { return State.getState().threatsResolved; },
+  threatManager, // direct handle for test-only resolve/inspection
+  state: () => State.getState(),
+  useItem: (id: string) => State.useItem(id),
+  giveItem: (id: string) => {
+      State.collectItem(id);
+      // Note: giveItem does NOT apply category effects — it's a test/debug
+      // bridge for putting items in the inventory. Use useItem to consume
+      // and get the effect.
+    },
+  activateCompanion: (id: string) => State.activateCompanion(id as any),
+  HAPPINESS_CONFIG: { ...HAPPINESS },
   // Navigate directly (bypasses click detection for test reliability)
   navigateToZone(zoneId: string) { enterZone(zoneId); },
   navigateToRoom(roomId: string) { enterRoom(roomId); },

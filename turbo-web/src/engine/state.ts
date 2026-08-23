@@ -7,6 +7,7 @@
 
 import type { GameState, GameStateData, DogId, CompanionId } from '@/types';
 import { HAPPINESS } from '@/config';
+import { ITEMS } from '@/data';
 
 type StateListener = (state: GameStateData) => void;
 
@@ -119,24 +120,26 @@ export class StateManager {
   
   useItem(itemId: string): boolean {
     if (!itemId) return false;
-    
+
     const slotIndex = this.state.inventory.findIndex(slot => slot.item === itemId && slot.count > 0);
     if (slotIndex === -1) return false;
-    
+
     // Decrease count or remove entirely
     this.state.inventory[slotIndex]!.count--;
     if (this.state.inventory[slotIndex]!.count <= 0) {
       this.state.inventory[slotIndex] = { item: null, count: 0 };
     }
-    
-    // Apply comfort effect if applicable
-    const happinessDelta = HAPPINESS.COMFORT_ITEM_RESTORE;
-    this.modifyHappiness(happinessDelta);
-    
+
+    // Item effects by category: comfort/food restore happiness
+    const item = ITEMS[itemId];
+    if (item && (item.category === 'comfort' || item.category === 'food')) {
+      this.modifyHappiness(HAPPINESS.COMFORT_ITEM_RESTORE);
+    }
+
     this.emit('useItem', { itemId });
     return true;
   }
-  
+
   meetCompanion(companionId: string): void {
     if (!this.state.companionsMet.has(companionId)) {
       this.state.companionsMet.add(companionId as CompanionId);
@@ -176,15 +179,11 @@ export class StateManager {
   resolveThreat(threatId: string, success: boolean): void {
     if (success) {
       this.state.threatsResolved++;
-      
-      // Reward for successful resolution
-      const reward = HAPPINESS.COMFORT_ITEM_RESTORE;
-      this.modifyHappiness(reward);
+      this.modifyHappiness(HAPPINESS.THREAT_SUCCESS_REWARD);
     } else {
-      // Penalty for failure
-      this.modifyHappiness(-20);
+      this.modifyHappiness(-HAPPINESS.THREAT_FAIL_PENALTY);
     }
-    
+
     this.emit('resolveThreat', { threatId, success });
   }
   
