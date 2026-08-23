@@ -158,7 +158,7 @@ turbo-game-v2/
 #### ⚠️ Sprint 4 — Remaining
 - [x] **Zone-specific threat mapping** — ✅ COMPLETED 2026-08-22: all 40 threats now triggerable via zone `threat` (auto on entry), `doorThreat` (E/Space at FP exit door), `legacyThreat` (zone-aware core features), and feature `threat` (confirm-gated objects). See `tests/zone-threats.spec.ts` (6 tests).
 - [x] **Playtest + balance pass** — ✅ COMPLETED 2026-08-23: threat rewards/penalties tuned (success +10, fail -15), useItem applies category effects internally, decay reads config + companion bonus (0.9x), fresh-run reset. See `tests/balance.spec.ts` (5 tests).
-- [ ] **Transition variety** — only fade-in/out exists; wipe/zoom/slide effects from the original list are not implemented
+- [x] **Transition variety** — ✅ COMPLETED 2026-08-23: fade (default), wipe (band sweep), zoom (iris in/out), slide (dual-band) all implemented in `engine/transitions.ts` (self-driven RAF, eased). 17 zones assigned varied kinds. See `tests/transitions.spec.ts` (6 tests).
 
 ### ✅ Sprint 5: Interactions, Minimap & Polish (2026-08-21)
 - [x] E/Space confirm for FP doors, TP threats/gates/NPCs (with "Press E" prompts)
