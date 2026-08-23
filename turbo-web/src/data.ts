@@ -445,6 +445,7 @@ export const ZONES: Record<string, Zone> = {
       { type: 'traffic', x: 11, z: -6, id: 'street_traffic', label: '🚗 Traffic' },
       { type: 'cat', x: -12, z: -4, id: 'street_cat', label: '🐱 Mean Cat' },
       { type: 'mailbox', x: -10, z: 8, id: 'street_mail', label: '📬 Mail Carrier', threat: 'mailman' },
+      { type: 'trap', x: 12, z: 10, id: 'street_construction', label: '🚧 Construction Crew', threat: 'construction' },
       // Gates to every other zone (spread around the hub)
       { type: 'gate', x: 8, z: 3, id: 'gate_dog_park', label: '🌳 Dog Park', gate: 'dog_park' },
       { type: 'gate', x: -15, z: -2, id: 'gate_shelter', label: '🏥 Shelter', gate: 'shelter' },
@@ -572,6 +573,9 @@ export const ZONES: Record<string, Zone> = {
   },
   neighborhood: {
     threat: 'bully',
+    features: [
+      { type: 'trap', x: 8, z: 6, id: 'neighbor_dog_feature', label: '🐕 Neighbor Dog', threat: 'neighbor_dog' },
+    ],
     threatKind: 'combat',
     id: 'neighborhood',
     transition: 'slide',
@@ -652,6 +656,7 @@ export const ZONES: Record<string, Zone> = {
       { type: 'scent_post', x: -6, z: 5, id: 'lake_scent', label: '🐾 Scent Post' },
       { type: 'treasure', x: 7, z: -6, id: 'lake_treasure', label: '✨ Hidden Treasure' },
       { type: 'trap', x: -6, z: 6, id: 'lake_monster', label: '🐉 Lake Monster', threat: 'lake_monster' },
+      { type: 'mailbox', x: 9, z: 8, id: 'lake_fog', label: '🌫️ Thick Fog', threat: 'fog' },
       { type: 'bridge', x: 5, z: 3, id: 'wooden_bridge', label: '🌉 Wooden Bridge' },
       { type: 'return_gate', x: 0, z: -8, id: 'lake_exit', label: '🚪 Exit to Streets' },
     ],
@@ -661,6 +666,9 @@ export const ZONES: Record<string, Zone> = {
   pet_store: {
     threat: 'pet_shop_bell',
     threatKind: 'timing',
+    features: [
+      { type: 'trap', x: 7, z: -6, id: 'petshop_cat_feature', label: '🐱 Pet Shop Cat', threat: 'pet_shop_cat' },
+    ],
     id: 'pet_store',
     transition: 'wipe',
     name: '🏪 Pet Paradise',
@@ -769,6 +777,7 @@ export const ZONES: Record<string, Zone> = {
       { type: 'fountain', x: 0, z: 0, id: 'forest_fountain', label: '💧 Forest Spring' },
       { type: 'scent_post', x: -9, z: 7, id: 'forest_scent', label: '🐾 Scent Post' },
       { type: 'trap', x: -8, z: -5, id: 'forest_thorn', label: '🌵 Forest Thorns', threat: 'forest_thorn' },
+      { type: 'mailbox', x: 9, z: 9, id: 'forest_squirrel', label: '🐿️ Squirrel', threat: 'squirrel' },
       { type: 'treasure', x: 8, z: -8, id: 'forest_treasure', label: '✨ Cave Entrance' },
       { type: 'lure', x: 5, z: 6, id: 'forest_lure', label: '🍖 Food Scent' },
       { type: 'return_gate', x: 0, z: -8, id: 'forest_exit', label: '🚪 Exit to Streets' },
@@ -866,6 +875,7 @@ export const ZONES: Record<string, Zone> = {
       { type: 'scent_post', x: -8, z: 7, id: 'mountain_scent', label: '🐾 Scent Post' },
       { type: 'treasure', x: 9, z: -8, id: 'mountain_treasure', label: '✨ Cave Treasure' },
       { type: 'trap', x: -9, z: 7, id: 'mt_goat', label: '🐐 Mountain Goat', threat: 'mountain_goat' },
+      { type: 'mailbox', x: 10, z: 9, id: 'mt_lightning', label: '⚡ Lightning Strike', threat: 'lightning' },
       { type: 'lure', x: 6, z: 6, id: 'mountain_lure', label: '🍖 Food Scent' },
       { type: 'return_gate', x: 0, z: -8, id: 'mountain_exit', label: '🚪 Exit to Streets' },
     ],
@@ -876,6 +886,9 @@ export const ZONES: Record<string, Zone> = {
     threat: 'garden_hose',
     threatKind: 'sneak',
     doorThreat: 'garden_snake',
+    features: [
+      { type: 'trap', x: -7, z: 9, id: 'garden_insect_feature', label: '🐛 Giant Insect', threat: 'garden_insect' },
+    ],
     id: 'garden',
     transition: 'fade',
     name: '🌺 Secret Garden',

@@ -2,6 +2,8 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+  testMatch: ['**/*.spec.ts'],
+  testIgnore: ['**/unit/**'],
   timeout: 30_000,
   expect: { timeout: 5_000 },
   fullyParallel: false,
