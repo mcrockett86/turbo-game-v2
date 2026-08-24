@@ -6,7 +6,7 @@
 
 // ===== Game State Types =====
 
-export type ZoneType = 'fp' | 'tp' | 'search';
+export type ZoneType = 'fp' | 'tp';
 export type GameState = 'select_dog' | 'playing' | 'transitioning' | 'game_over' | 'victory';
 
 export interface GameStateData {
@@ -239,4 +239,4 @@ export interface BaseRenderer {
   dispose(): void;
 }
 
-export type RendererType = 'fp' | 'tp' | 'search';
+export type RendererType = 'fp' | 'tp';

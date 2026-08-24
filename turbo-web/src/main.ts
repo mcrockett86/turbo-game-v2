@@ -404,17 +404,6 @@ function performZoneEntry(zoneId: string): void {
       wireTpRenderer(tpRenderer, zone);
       activeRenderer = tpRenderer;
     }
-  } else {
-    // 'search' type — not implemented in v2 yet; fall back to fp if rooms exist
-    if (zone.rooms && canvasEl) {
-      currentRoomId = zone.rooms[0].id;
-      fpRenderer = new FpRoomRenderer();
-      fpRenderer.setZoneRooms(zone.rooms ?? null);
-      const room = zone.rooms[0];
-      fpRenderer.init(canvasEl, room);
-      wireFpRenderer(fpRenderer, zone);
-      activeRenderer = fpRenderer;
-    }
   }
 
   console.log(`[Turbo] Entered zone: ${zone.name} (type=${zone.type})`);

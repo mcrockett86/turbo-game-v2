@@ -11,7 +11,7 @@ import { ZONES, ITEMS, THREATS, COMPANIONS, DOGS } from '@/data';
 import type { ThreatType } from '@/types';
 
 const VALID_THREAT_TYPES = new Set<ThreatType>(['timing', 'combat', 'sneak', 'comfort']);
-const VALID_ZONE_TYPES = new Set(['fp', 'tp', 'search']);
+const VALID_ZONE_TYPES = new Set(['fp', 'tp']); // 'search' was cut 2026-08-24 — keep this in sync with ZoneType in types.ts
 const VALID_TRANSITIONS = new Set(['fade', 'wipe', 'zoom', 'slide']);
 const VALID_ITEM_CATEGORIES = new Set([
   'comfort', 'food', 'clue', 'key', 'collectible',
