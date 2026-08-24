@@ -242,11 +242,14 @@ function init(): void {
   threatManager.onStart = (threat: { type: string }) => { setActiveThreatType(threat.type); };
   threatManager.onStateChange = (phase, threat) => {
     if (!threat) setActiveThreatType(null);
+    // Duck the music bed while a threat minigame is in play (intro + active).
+    if (phase === 'intro' || phase === 'active') Audio.beginDuck();
+    else if (phase === 'resolved') Audio.endDuck();
   };
   threatManager.onResolve = (threatId, success) => {
     const threat = THREATS[threatId];
     State.resolveThreat(threatId, success);
-    Audio.playSfx(success ? 'bark' : 'select');
+    Audio.playSfx(success ? 'threat_success' : 'threat_fail');
     setActiveThreatType(null);
 
     // Manga cutaway for combat threats
@@ -326,7 +329,7 @@ function triggerZoneThreat(threatId: string): void {
   const threat = THREATS[threatId];
   if (!threat) { console.warn(`[Turbo] Unknown threat id: ${threatId}`); return; }
   if (threatManager.isBusy || mangaOverlay.isPlaying) return; // one threat at a time
-  Audio.playSfx('bark');
+  Audio.playSfx('threat_start');
   threatManager.start(threat);
 }
 
@@ -562,9 +565,12 @@ function showCompanionDialogue(companionId: string): void {
   const companion = COMPANIONS[companionId];
   if (!companion) return;
   Audio.playSfx('bark');
+  Audio.beginDuck(); // let the dialogue bark sit above the music bed
   const lines = companion.dialogue;
   const line = lines.length ? lines[Math.floor(Math.random() * lines.length)] : 'Woof!';
   dialogueOverlay.show(companion.name, line, companion.color, companion.accentColor);
+  // Release the duck when the bubble auto-dismisses.
+  setTimeout(() => Audio.endDuck(), 6000);
 }
 
 function handleFeature(feature: { type: string; item?: string; gate?: string; threat?: string }, zone: Zone): void {

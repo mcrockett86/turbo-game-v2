@@ -1,0 +1,17 @@
+{
+  "label": "post",
+  "recordedAt": "2026-08-24T21:31:46.039Z",
+  "gitCommit": "b5d636e0ba22ee1341a87b6d9b2c1daa5179f72e",
+  "scenario": "navigate-all",
+  "frames": {
+    "samples": 600,
+    "totalFrames": 1423,
+    "avgMs": 16.777,
+    "p50Ms": 16.700000000000728,
+    "p95Ms": 16.700000000000728,
+    "maxMs": 83.29999999999927,
+    "droppedFrames": 1
+  },
+  "zoneSwaps": 18,
+  "notes": "baseline AFTER audio (Sprint 6 item 1)"
+}
