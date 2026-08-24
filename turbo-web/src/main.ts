@@ -25,6 +25,7 @@ import { MapStore } from './engine/map-store';
 import { MapPanel } from './engine/map-panel';
 import { HintPanel } from './engine/hint-panel';
 import { Transitions } from './engine/transitions';
+import { perf } from './engine/perf';
 import { Endgame } from './engine/endgame';
 import type { DogId, Zone, Room, Feature, RoomFeature } from './types';
 
@@ -151,6 +152,18 @@ const onKeyUp = (e: KeyboardEvent) => {
 };
 window.addEventListener('keydown', onKeyDown);
 window.addEventListener('keyup', onKeyUp);
+
+// Dev/test hooks (stable names; E2E + perf scripts rely on these).
+(window as any).__turboPerf = perf;
+(window as any).__turboThreat = threatManager;
+(window as any).__turboZoneIds = Object.keys(ZONES);
+(window as any).__turboNav = (zoneId: string): boolean => {
+  // Skip if the zone isn't in data or a threat/transition is in flight.
+  if (!ZONES[zoneId]) { console.warn(`[dev-nav] unknown zone: ${zoneId}`); return false; }
+  if (threatManager.isBusy || transitions.active) { console.warn(`[dev-nav] busy (threat/transition)`); return false; }
+  enterZone(zoneId);
+  return true;
+};
 
 // ===== Initialization =====
 function init(): void {
@@ -676,11 +689,13 @@ let lastTime = performance.now();
 
 function startGameLoop(): void {
   function loop(currentTime: number): void {
-    const delta = (currentTime - lastTime) / 1000;
+    const deltaMs = currentTime - lastTime;
+    const delta = deltaMs / 1000;
     lastTime = currentTime;
 
     if (currentScreen === 'playing' || currentScreen === 'game_over' || currentScreen === 'victory') {
       update(delta, currentTime);
+      perf.recordFrame(deltaMs);
     }
 
     requestAnimationFrame(loop);

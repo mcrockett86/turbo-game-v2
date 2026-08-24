@@ -8,7 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "perf:baseline": "npm run build && npx tsx scripts/perf-check.ts --mode=baseline --label=pre",
+    "perf:verify": "npx tsx scripts/perf-check.ts --mode=verify --label=pre",
+    "perf:verify:post": "npx tsx scripts/perf-check.ts --mode=verify --label=post"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
@@ -16,6 +19,7 @@
     "jsdom": "^30.0.1",
     "playwright": "^1.62.1",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.23.12",
     "typescript": "^5.3.3",
     "vite": "^5.0.12",
     "vitest": "^2.1.9"

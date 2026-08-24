@@ -1,0 +1,17 @@
+{
+  "label": "pre",
+  "recordedAt": "2026-08-24T20:35:29.564Z",
+  "gitCommit": "64f6b4661da2844d7da30871c195583e9319a65f",
+  "scenario": "navigate-all",
+  "frames": {
+    "samples": 600,
+    "totalFrames": 1419,
+    "avgMs": 16.749333333333333,
+    "p50Ms": 16.69999999999709,
+    "p95Ms": 16.700000000000728,
+    "maxMs": 66.70000000000073,
+    "droppedFrames": 1
+  },
+  "zoneSwaps": 18,
+  "notes": "baseline BEFORE audio (Sprint 6 item 5)"
+}
