@@ -18,8 +18,24 @@ export abstract class BaseRenderer {
 
   get width(): number { return this.canvas?.width ?? 0; }
   get height(): number { return this.canvas?.height ?? 0; }
-  get cssWidth(): number { return this.cssW; }
-  get cssHeight(): number { return this.cssH; }
+  /** Live CSS-pixel display width, derived from the canvas's actual geometry.
+   *  Reading live (not a stale cache) keeps every renderer — zone, threat,
+   *  inventory, panels — agreeing on the visible size regardless of init
+   *  order or devicePixelRatio, so overlays always center on the real canvas. */
+  get cssWidth(): number {
+    if (this.canvas) {
+      const w = this.canvas.clientWidth || this.canvas.getBoundingClientRect().width;
+      if (w > 0) return Math.round(w);
+    }
+    return this.cssW;
+  }
+  get cssHeight(): number {
+    if (this.canvas) {
+      const h = this.canvas.clientHeight || this.canvas.getBoundingClientRect().height;
+      if (h > 0) return Math.round(h);
+    }
+    return this.cssH;
+  }
 
   /**
    * Size the canvas backing store to its CSS display size * devicePixelRatio
