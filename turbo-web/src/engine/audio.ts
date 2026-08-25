@@ -98,6 +98,11 @@ export class AudioManager {
     return this.ctx !== null && this.ctx.state === 'running';
   }
 
+  /** Number of music voices currently tracked (for stability assertions). */
+  get liveVoiceCount(): number {
+    return this.liveVoices.length;
+  }
+
   // ===== Music =====
 
   /** Start (or restart) the music bed for a zone. Best-effort. */

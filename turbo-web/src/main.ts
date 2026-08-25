@@ -156,7 +156,16 @@ window.addEventListener('keyup', onKeyUp);
 // Dev/test hooks (stable names; E2E + perf scripts rely on these).
 (window as any).__turboPerf = perf;
 (window as any).__turboThreat = threatManager;
+(window as any).__turboAudio = Audio;
 (window as any).__turboZoneIds = Object.keys(ZONES);
+(window as any).__turboStateHappiness = () => State.happiness;
+(window as any).__turboThreats = THREATS; // for stability test threat-cycle driving
+(window as any).__turboStateGameOver = () => State.getState().gameOverTime !== null;
+(window as any).__turboZoneThreats = (zoneId: string) => !!(ZONES[zoneId]?.threat);
+// A stable set of {zone, threat} pairs the stability test can drive cycles with.
+(window as any).__turboThreatPairs = Object.values(ZONES)
+  .filter((z) => z.threat && THREATS[z.threat as string])
+  .map((z) => ({ zone: z.id, threat: z.threat as string }));
 (window as any).__turboNav = (zoneId: string): boolean => {
   // Skip if the zone isn't in data or a threat/transition is in flight.
   if (!ZONES[zoneId]) { console.warn(`[dev-nav] unknown zone: ${zoneId}`); return false; }
@@ -387,9 +396,15 @@ function performZoneEntry(zoneId: string): void {
 
   // Zone-specific threat: auto-triggers on zone entry (Sprint 4 zone threat mapping)
   if (zone.threat) {
-    // Slight delay so the transition/first frame settles before the minigame grabs input
+    // Slight delay so the transition/first frame settles before the minigame grabs input.
+    // The guard (zone + screen + not-busy) is critical: a rapid navigation away
+    // before the 600ms fires must NOT let the stale timer start a threat for a
+    // zone we've already left — that was the source of spurious threat fails.
+    const threatId = zone.threat as string;
     setTimeout(() => {
-      if (currentZoneId === zone.id && currentScreen === 'playing') triggerZoneThreat(zone.threat as string);
+      if (currentZoneId === zone.id && currentScreen === 'playing' && !threatManager.isBusy) {
+        triggerZoneThreat(threatId);
+      }
     }, 600);
   }
 

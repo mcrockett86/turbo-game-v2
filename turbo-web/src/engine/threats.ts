@@ -87,6 +87,14 @@ export class ThreatManager extends BaseRenderer {
 
   /** Start a threat mini-game. Threat must come from the THREATS data. */
   start(threat: Threat): void {
+    // Guard against double-start (e.g. a stale entry-threat timer firing after
+    // we already started a different threat). Re-arming the key listeners on
+    // every start would otherwise leak a duplicate pair per threat cycle.
+    if (this.phase !== 'idle') {
+      window.removeEventListener('keydown', this.boundKeyDown);
+      window.removeEventListener('keyup', this.boundKeyUp);
+    }
+
     this.onStart?.(threat);
     this.currentThreat = threat;
     this.currentType = threat.type;
