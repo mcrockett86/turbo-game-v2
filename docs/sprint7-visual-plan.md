@@ -229,6 +229,8 @@
 | Milestone | Items | Est. effort | Re-baseline perf? |
 |---|---|---|---|
 | **M1** | 7.5 (DPR), 7.8 (CSS polish) | 1 day | Yes (DPR changes draw area) |
+
+> **M1 — DONE (2026-08-25).** HiDPI/DPR canvas scaling landed (`82a7d91`): `BaseRenderer.resizeToDisplay()` sizes the backing store to CSS display size × `devicePixelRatio` (capped at 2×) and applies a CSS-pixel transform so all drawing code is unchanged; every renderer's layout + click-mapping math now uses `cssWidth`/`cssHeight`. Verified sharp at dpr 2 (1800×1440 backing store for a 900px viewport), 79/79 unit + 52/52 E2E green. CSS polish (`da88051`): screen fade-in on show, smoother happiness-bar transition, zone-indicator hook. **Note:** the dog-card idle-sway was cut — it fought Playwright's click-stability check (infinite transforms never "settle"); hover-lift stays since it settles. Keep any future canvas/DOM animation that must be clickable to a *settled* end state, or gate it behind a non-`transform` property.
 | **M2** | 7.1 (TP backgrounds), 7.6 (obstacles) | 1.5 days | Measure, re-baseline if > +10 ms |
 | **M3** | 7.2 (dog model), 7.7 (particles) | 1.5 days | Measure |
 | **M4** | 7.3 (FP sprites), 7.4 (room dressing) | 2 days | Measure |
