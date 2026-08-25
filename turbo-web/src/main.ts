@@ -625,9 +625,12 @@ function handleFeature(feature: { type: string; item?: string; gate?: string; th
   }
 
   // Companion (must come BEFORE item pickup: a dog_friend feature also carries
-  // an item, but its primary effect is meeting/activating the companion)
+  // an item, but its primary effect is meeting/activating the companion).
+  // A feature's explicit `companion` field wins over the zone fallback.
   if (ftype === 'dog_friend') {
-    const companionId = zone.companions?.[0] ?? Object.keys(COMPANIONS)[0];
+    const companionId = (feature as { companion?: string }).companion
+      ?? zone.companions?.[0]
+      ?? Object.keys(COMPANIONS)[0];
     State.meetCompanion(companionId);
     showCompanionDialogue(companionId);
     companionPanel.refresh(companionSnapshot());

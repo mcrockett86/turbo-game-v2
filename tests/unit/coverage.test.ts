@@ -32,7 +32,17 @@ function companionIds(): string[] {
   return Object.keys(COMPANIONS);
 }
 
-/** Set of companion ids a player can actually meet, and how. */
+/** All interactable features in a zone: zone-level (TP) + room-level (FP). */
+function allZoneFeatures(zone: Zone): Array<{ item?: string; companion?: string }> {
+  const feats: Array<{ item?: string; companion?: string }> = [...(zone.features ?? [])];
+  for (const room of zone.rooms ?? []) feats.push(...(room.features ?? []));
+  return feats;
+}
+
+/** Set of companion ids a player can actually meet, and how.
+ *  TP zones: zone.companions (met via dog_friend) or matching NPC name.
+ *  FP zones: a room feature with type 'dog_friend' (explicit `companion` field
+ *  or the zone's companions fallback — both resolve to the same companions). */
 function reachableCompanions(): { id: string; via: string[] }[] {
   const viaDogFriend = new Set<string>();
   const npcNames = new Set<string>();
@@ -40,6 +50,10 @@ function reachableCompanions(): { id: string; via: string[] }[] {
   for (const zone of Object.values(ZONES)) {
     for (const c of zone.companions ?? []) viaDogFriend.add(c);
     for (const npc of zone.npcs ?? []) npcNames.add(npc.name);
+    for (const f of allZoneFeatures(zone)) {
+      const type = (f as { type?: string }).type;
+      if (type === 'dog_friend' && f.companion) viaDogFriend.add(f.companion);
+    }
   }
 
   return companionIds().map((id) => {
@@ -50,11 +64,11 @@ function reachableCompanions(): { id: string; via: string[] }[] {
   });
 }
 
-/** Set of item ids a player can actually pick up. */
+/** Set of item ids a player can actually pick up (zone-level + room-level features). */
 function reachableItemIds(): Set<string> {
   const refs = new Set<string>();
   for (const zone of Object.values(ZONES)) {
-    for (const f of zone.features ?? []) {
+    for (const f of allZoneFeatures(zone)) {
       if (f.item) refs.add(f.item);
     }
   }

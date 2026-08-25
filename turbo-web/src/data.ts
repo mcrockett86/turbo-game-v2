@@ -460,8 +460,12 @@ export const ZONES: Record<string, Zone> = {
       { type: 'gate', x: -3, z: 15, id: 'gate_beach', label: '🏖️ Beach', gate: 'beach' },
       { type: 'gate', x: -12, z: 14, id: 'gate_mountain', label: '⛰️ Mountain', gate: 'mountain' },
       { type: 'gate', x: 16, z: 7, id: 'gate_waterfall', label: '💦 Waterfall', gate: 'waterfall' },
-      { type: 'gate', x: 18, z: 4, id: 'gate_secret', label: '🌙 Secret Park', gate: 'park_secret' }
-    ],
+      { type: 'gate', x: 18, z: 4, id: 'gate_secret', label: '🌙 Secret Park', gate: 'park_secret' },
+    
+      { type: 'treasure', x: 5, z: 5, id: 'suburban_streets_key', label: '✨ key', item: 'key' },
+      { type: 'treasure', x: 5, z: 5, id: 'suburban_streets_dog_license', label: '✨ dog_license', item: 'dog_license' },
+      { type: 'treasure', x: 5, z: 5, id: 'suburban_streets_collar_piece', label: '✨ collar_piece', item: 'collar_piece' },
+      { type: 'treasure', x: 5, z: 5, id: 'suburban_streets_water_bottle', label: '✨ water_bottle', item: 'water_bottle' },],
     music: 'suburban',
     hint: 'You see a squirrel. It reminds you of... something. A yard? With squirrels? The gates all lead somewhere — follow the one that smells like home.'
   },
@@ -516,6 +520,31 @@ export const ZONES: Record<string, Zone> = {
           'The shelter is this way! *points*',
         ],
       },
+
+      {
+        id: 'luna_npc',
+        name: 'Luna',
+        color: '#3a3a3a',
+        accentColor: '#ffffff',
+        x: -2,
+        z: 6,
+        dialogue: [
+          'I can help you find your way. I\'ve been watching things.',
+          'The apartment building has a back entrance. Watch for the cat.',
+        ],
+      },
+      {
+        id: 'whiskers_npc',
+        name: 'Whiskers',
+        color: '#6a6a6a',
+        accentColor: '#9a9a9a',
+        x: 5,
+        z: -5,
+        dialogue: [
+          'Dogs. Always dogs. But... you seem nice.',
+          'The shelter has a back exit. But the cat guard is fierce.',
+        ],
+      },
     ],
     features: [
       { type: 'water_bowl', x: 6, z: 3, id: 'water_bowl', label: '💧 Water Bowl' },
@@ -525,7 +554,11 @@ export const ZONES: Record<string, Zone> = {
       { type: 'treasure', x: -7, z: 5, id: 'treasure_1', label: '✨ Scent Clue' },
       { type: 'mailbox', x: 5, z: 5, id: 'park_squirrel', label: '🐿️ Squirrel Army', threat: 'park_squirrel' },
       { type: 'return_gate', x: 0, z: -8, id: 'park_exit', label: '🚪 Exit to Streets' },
-    ],
+    
+      { type: 'treasure', x: 5, z: 5, id: 'dog_park_favorite_toy', label: '✨ favorite_toy', item: 'favorite_toy' },
+      { type: 'treasure', x: 5, z: 5, id: 'dog_park_warm_blanket', label: '✨ warm_blanket', item: 'warm_blanket' },
+      { type: 'treasure', x: 5, z: 5, id: 'dog_park_golden_bone', label: '✨ golden_bone', item: 'golden_bone' },
+      { type: 'treasure', x: 5, z: 5, id: 'dog_park_comfort_bell', label: '✨ comfort_bell', item: 'comfort_bell' },],
     returnZone: 'suburban_streets',
     hint: 'A big dog says "Home is where the fence is." Fences are everywhere... but which fence?',
   },
@@ -539,7 +572,7 @@ export const ZONES: Record<string, Zone> = {
     type: 'fp',
     rooms: [
       { id: 'apt_entrance', name: 'Entryway', w: 120, h: 80, d: 150, color: '#8a7a6a', exits: ['apt_living', 'apt_kitchen'], isEntrance: true, entranceZone: 'suburban_streets' },
-      { id: 'apt_living', name: 'Living Room', w: 200, h: 100, d: 180, color: '#7a6a5a', exits: ['apt_entrance', 'apt_bedroom'], features: [{type:'tv', x:100, y:50, w:60, h:40, label:'📺 TV (barks back)'}] },
+      { id: 'apt_living', name: 'Living Room', w: 200, h: 100, d: 180, color: '#7a6a5a', exits: ['apt_entrance', 'apt_bedroom'], features: [{type:'tv', x:100, y:50, w:60, h:40, label:'📺 TV (barks back)'}, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ blanket', item: 'blanket' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ home_photo', item: 'home_photo' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ diary_page', item: 'diary_page' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ squirrel_dog', item: 'squirrel_dog' },] },
       { id: 'apt_kitchen', name: 'Kitchen', w: 150, h: 90, d: 120, color: '#9a8a7a', exits: ['apt_entrance', 'apt_bathroom'], features: [{type:'food', x:75, y:45, w:40, h:30, label:'🍖 Food', item:'treat'}] },
       { id: 'apt_bedroom', name: 'Bedroom', w: 160, h: 90, d: 140, color: '#6a5a7a', exits: ['apt_living', 'apt_bathroom'], features: [{type:'hint', x:80, y:45, w:50, h:30, label:'🧸 Toy', item:'toy'}] },
       { id: 'apt_bathroom', name: 'Bathroom', w: 100, h: 80, d: 100, color: '#8a8a9a', exits: ['apt_kitchen', 'apt_bedroom'], features: [{type:'water_bowl', x:50, y:40, w:30, h:30, label:'💧 Water Bowl'}] },
@@ -561,7 +594,7 @@ export const ZONES: Record<string, Zone> = {
       { id: 'shelter_lobby', name: 'Lobby', w: 200, h: 100, d: 150, color: '#8a8a9a', exits: ['shelter_kennels', 'shelter_office', 'shelter_exit', 'shelter_garden'] },
       { id: 'shelter_exit', name: 'Exit Door', w: 80, h: 60, d: 80, color: '#6a6a7a', exits: ['shelter_lobby', 'shelter_to_neighborhood'] },
       { id: 'shelter_to_neighborhood', name: 'Side Gate', w: 60, h: 50, d: 60, color: '#5a5a6a', exits: ['shelter_lobby'], isEntrance: true, entranceZone: 'neighborhood' },
-      { id: 'shelter_kennels', name: 'Kennels', w: 300, h: 120, d: 200, color: '#7a7a8a', exits: ['shelter_lobby'], features: [{type:'dog_friend', x:150, y:60, w:50, h:40, label:'🐕 New Friend', item:'friend'}] },
+      { id: 'shelter_kennels', name: 'Kennels', w: 300, h: 120, d: 200, color: '#7a7a8a', exits: ['shelter_lobby'], features: [{type:'dog_friend', x:150, y:60, w:50, h:40, label:'🐕 New Friend', item:'friend'}, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ collar_buckle', item: 'collar_buckle' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ leash', item: 'leash' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ treat_bag', item: 'treat_bag' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ magic_bone', item: 'magic_bone' },] },
       { id: 'shelter_office', name: 'Office', w: 120, h: 80, d: 100, color: '#6a6a7a', exits: ['shelter_lobby'], features: [{type:'hint', x:60, y:40, w:40, h:30, label:'📋 Poster', item:'map_fragment'}] },
       { id: 'shelter_garden', name: 'Garden', w: 150, h: 100, d: 120, color: '#4a7a3a', exits: ['shelter_lobby'], features: [{type:'food', x:75, y:50, w:40, h:30, label:'🍖 Treat', item:'treat'}] },
       { id: 'shelter_vet', name: 'Vet Room', w: 100, h: 80, d: 100, color: '#9a9aaa', exits: ['shelter_lobby'], features: [{type:'hint', x:50, y:40, w:40, h:30, label:'📋 Medical Record', item:'collar'}] }
@@ -585,7 +618,7 @@ export const ZONES: Record<string, Zone> = {
     rooms: [
       { id: 'neighborhood_entrance', name: 'Side Gate', w: 80, h: 60, d: 80, color: '#5a5a5a', exits: ['neighborhood_start'], isEntrance: true, entranceZone: 'shelter' },
       { id: 'neighborhood_start', name: 'Street Corner', w: 250, h: 120, d: 200, color: '#5a8a5a', exits: ['neighborhood_main', 'neighborhood_park', 'neighborhood_entrance', 'neighborhood_library'] },
-      { id: 'neighborhood_main', name: 'Main Street', w: 350, h: 140, d: 300, color: '#6a6a6a', exits: ['neighborhood_start', 'neighborhood_home', 'neighborhood_market'], features: [{type:'person', x:175, y:70, w:40, h:60, label:'👤 "Have you seen a dog like him?"'}] },
+      { id: 'neighborhood_main', name: 'Main Street', w: 350, h: 140, d: 300, color: '#6a6a6a', exits: ['neighborhood_start', 'neighborhood_home', 'neighborhood_market'], features: [{type:'person', x:175, y:70, w:40, h:60, label:'👤 "Have you seen a dog like him?"'}, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ medal', item: 'medal' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ bone_necklace', item: 'bone_necklace' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ tennis_ball', item: 'tennis_ball' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ dog_tag', item: 'dog_tag' }, {type:'dog_friend', x:120, y:60, w:50, h:40, label:'🐕 Max the Neighborhood Dog', companion:'neighborhood_dog'}] },
       { id: 'neighborhood_park', name: 'Local Park', w: 200, h: 100, d: 180, color: '#4a7a3a', exits: ['neighborhood_start'], features: [{type:'hint', x:100, y:50, w:60, h:30, label:'🌳 Old Tree', item:'tree_clue'}] },
       { id: 'neighborhood_home', name: 'The House', w: 180, h: 100, d: 150, color: '#8a7a5a', exits: ['neighborhood_main'], isHome: true, isEntrance: true, entranceZone: 'home', features: [{type:'home', x:90, y:50, w:60, h:60, label:'🏠 Home'}] },
       { id: 'neighborhood_library', name: 'Library', w: 140, h: 90, d: 120, color: '#7a6a5a', exits: ['neighborhood_start'], features: [{type:'hint', x:70, y:45, w:50, h:30, label:'📚 Lost Dog Poster', item:'photo'}] },
@@ -659,7 +692,11 @@ export const ZONES: Record<string, Zone> = {
       { type: 'mailbox', x: 9, z: 8, id: 'lake_fog', label: '🌫️ Thick Fog', threat: 'fog' },
       { type: 'bridge', x: 5, z: 3, id: 'wooden_bridge', label: '🌉 Wooden Bridge' },
       { type: 'return_gate', x: 0, z: -8, id: 'lake_exit', label: '🚪 Exit to Streets' },
-    ],
+    
+      { type: 'treasure', x: 5, z: 5, id: 'lake_lake_crystal', label: '✨ lake_crystal', item: 'lake_crystal' },
+      { type: 'treasure', x: 5, z: 5, id: 'lake_shiny_rock', label: '✨ shiny_rock', item: 'shiny_rock' },
+      { type: 'treasure', x: 5, z: 5, id: 'lake_feather', label: '✨ feather', item: 'feather' },
+      { type: 'treasure', x: 5, z: 5, id: 'lake_leaf', label: '✨ leaf', item: 'leaf' },],
     returnZone: 'suburban_streets',
     hint: 'The water sparkles. You remember swimming here once. With your human.',
   },
@@ -676,7 +713,7 @@ export const ZONES: Record<string, Zone> = {
     type: 'fp',
     rooms: [
       { id: 'pet_entrance', name: 'Entrance', w: 120, h: 80, d: 150, color: '#FFB6C1', exits: ['pet_main', 'pet_back'], isEntrance: true, entranceZone: 'suburban_streets' },
-      { id: 'pet_main', name: 'Main Hall', w: 200, h: 100, d: 180, color: '#FF69B4', exits: ['pet_entrance', 'pet_treats', 'pet_toys', 'pet_grooming'], features: [{type:'pet_shop', x:100, y:50, w:60, h:40, label:'🏪 Pet Paradise'}] },
+      { id: 'pet_main', name: 'Main Hall', w: 200, h: 100, d: 180, color: '#FF69B4', exits: ['pet_entrance', 'pet_treats', 'pet_toys', 'pet_grooming'], features: [{type:'pet_shop', x:100, y:50, w:60, h:40, label:'🏪 Pet Paradise'}, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ companion_treat', item: 'companion_treat' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ companion_toy', item: 'companion_toy' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ golden_treat', item: 'golden_treat' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ ice_cream', item: 'ice_cream' }, {type:'dog_friend', x:120, y:60, w:50, h:40, label:'🐕 Coco at Pet Paradise', companion:'pet_shop_dog'}] },
       { id: 'pet_treats', name: 'Treat Room', w: 150, h: 90, d: 120, color: '#FFD700', exits: ['pet_main'], features: [{type:'food', x:75, y:45, w:40, h:30, label:'🍪 Treats', item:'pet_shop_treat'}] },
       { id: 'pet_toys', name: 'Toy Room', w: 160, h: 90, d: 140, color: '#FF69B4', exits: ['pet_main'], features: [{type:'hint', x:80, y:45, w:50, h:30, label:'🧸 Toys', item:'pet_shop_ticket'}] },
       { id: 'pet_grooming', name: 'Grooming Room', w: 100, h: 80, d: 100, color: '#FFF0F5', exits: ['pet_main'], features: [{type:'water', x:50, y:40, w:30, h:30, label:'💧 Water Bowl'}] },
@@ -731,7 +768,11 @@ export const ZONES: Record<string, Zone> = {
       { type: 'mailbox', x: -8, z: -6, id: 'show_roar', label: '📢 Roaring Crowd', threat: 'dog_show_roar' },
       { type: 'lure', x: 6, z: 4, id: 'treat_lure', label: '🍖 Treat Lure' },
       { type: 'return_gate', x: 0, z: -8, id: 'show_exit', label: '🚪 Exit to Streets' },
-    ],
+    
+      { type: 'treasure', x: 5, z: 5, id: 'dog_show_dog_show_trophy', label: '✨ dog_show_trophy', item: 'dog_show_trophy' },
+      { type: 'treasure', x: 5, z: 5, id: 'dog_show_rainbow_ribbon', label: '✨ rainbow_ribbon', item: 'rainbow_ribbon' },
+      { type: 'treasure', x: 5, z: 5, id: 'dog_show_puzzle_piece', label: '✨ puzzle_piece', item: 'puzzle_piece' },
+      { type: 'treasure', x: 5, z: 5, id: 'dog_show_moon_bone', label: '✨ moon_bone', item: 'moon_bone' },],
     returnZone: 'suburban_streets',
     hint: 'The roar of the crowd excites you. You remember winning here once.',
   },
@@ -782,7 +823,11 @@ export const ZONES: Record<string, Zone> = {
       { type: 'lure', x: 5, z: 6, id: 'forest_lure', label: '🍖 Food Scent' },
       { type: 'return_gate', x: 0, z: -8, id: 'forest_exit', label: '🚪 Exit to Streets' },
       { type: 'cave_entrance', x: 10, z: 0, id: 'cave_path', label: '🕳️ Cave Entrance' },
-    ],
+    
+      { type: 'treasure', x: 5, z: 5, id: 'forest_forest_mushroom', label: '✨ forest_mushroom', item: 'forest_mushroom' },
+      { type: 'treasure', x: 5, z: 5, id: 'forest_star_bone', label: '✨ star_bone', item: 'star_bone' },
+      { type: 'treasure', x: 5, z: 5, id: 'forest_flashlight', label: '✨ flashlight', item: 'flashlight' },
+      { type: 'treasure', x: 5, z: 5, id: 'forest_rope', label: '✨ rope', item: 'rope' },],
     returnZone: 'suburban_streets',
     hint: 'The forest smells like home. Your human used to bring you here for walks.',
   },
@@ -829,7 +874,11 @@ export const ZONES: Record<string, Zone> = {
       { type: 'treasure', x: 8, z: -7, id: 'beach_treasure', label: '✨ Buried Treasure' },
       { type: 'lure', x: 5, z: 5, id: 'beach_lure', label: '🍖 Fish Scent' },
       { type: 'return_gate', x: 0, z: -8, id: 'beach_exit', label: '🚪 Exit to Streets' },
-    ],
+    
+      { type: 'treasure', x: 5, z: 5, id: 'beach_beach_shell', label: '✨ beach_shell', item: 'beach_shell' },
+      { type: 'treasure', x: 5, z: 5, id: 'beach_shell', label: '✨ shell', item: 'shell' },
+      { type: 'treasure', x: 5, z: 5, id: 'beach_umbrella', label: '✨ umbrella', item: 'umbrella' },
+      { type: 'treasure', x: 5, z: 5, id: 'beach_hot_dog', label: '✨ hot_dog', item: 'hot_dog' },],
     returnZone: 'suburban_streets',
     hint: 'The sand feels familiar. Your human used to throw the ball here.',
   },
@@ -878,7 +927,11 @@ export const ZONES: Record<string, Zone> = {
       { type: 'mailbox', x: 10, z: 9, id: 'mt_lightning', label: '⚡ Lightning Strike', threat: 'lightning' },
       { type: 'lure', x: 6, z: 6, id: 'mountain_lure', label: '🍖 Food Scent' },
       { type: 'return_gate', x: 0, z: -8, id: 'mountain_exit', label: '🚪 Exit to Streets' },
-    ],
+    
+      { type: 'treasure', x: 5, z: 5, id: 'mountain_mountain_rock', label: '✨ mountain_rock', item: 'mountain_rock' },
+      { type: 'treasure', x: 5, z: 5, id: 'mountain_diamond_bone', label: '✨ diamond_bone', item: 'diamond_bone' },
+      { type: 'treasure', x: 5, z: 5, id: 'mountain_magnet', label: '✨ magnet', item: 'magnet' },
+      { type: 'treasure', x: 5, z: 5, id: 'mountain_cupcake', label: '✨ cupcake', item: 'cupcake' },],
     returnZone: 'suburban_streets',
     hint: 'The mountain air is crisp. Your human used to hike here with you.',
   },
@@ -896,7 +949,7 @@ export const ZONES: Record<string, Zone> = {
     type: 'fp',
     rooms: [
       { id: 'garden_entrance', name: 'Garden Gate', w: 120, h: 80, d: 150, color: '#FF69B4', exits: ['garden_main', 'garden_flowers'], isEntrance: true, entranceZone: 'suburban_streets' },
-      { id: 'garden_main', name: 'Main Path', w: 200, h: 100, d: 180, color: '#FFB6C1', exits: ['garden_entrance', 'garden_fountain', 'garden_rose'], features: [{type:'fountain', x:100, y:50, w:60, h:40, label:'⛲ Fountain'}] },
+      { id: 'garden_main', name: 'Main Path', w: 200, h: 100, d: 180, color: '#FFB6C1', exits: ['garden_entrance', 'garden_fountain', 'garden_rose'], features: [{type:'fountain', x:100, y:50, w:60, h:40, label:'⛲ Fountain'}, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ garden_flower', item: 'garden_flower' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ food', item: 'food' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ donut', item: 'donut' }, {type:'dog_friend', x:120, y:60, w:50, h:40, label:'🐕 Blossom in the Garden', companion:'garden_dog'}] },
       { id: 'garden_flowers', name: 'Flower Bed', w: 150, h: 90, d: 120, color: '#FFD700', exits: ['garden_main'], features: [{type:'hint', x:75, y:45, w:50, h:30, label:'🌸 Flowers', item:'flower'}] },
       { id: 'garden_fountain', name: 'Fountain Area', w: 160, h: 90, d: 140, color: '#87CEEB', exits: ['garden_main'], features: [{type:'water', x:80, y:45, w:40, h:30, label:'💧 Fountain'}] },
       { id: 'garden_rose', name: 'Rose Garden', w: 100, h: 80, d: 100, color: '#FF6347', exits: ['garden_main'], features: [{type:'secret_passage', x:50, y:40, w:40, h:30, label:'🔑 Rose Passage', item:'secret_key'}] }
@@ -916,7 +969,7 @@ export const ZONES: Record<string, Zone> = {
     type: 'fp',
     rooms: [
       { id: 'library_entrance', name: 'Entrance Hall', w: 120, h: 80, d: 150, color: '#D2B48C', exits: ['library_main', 'library_stacks'], isEntrance: true, entranceZone: 'suburban_streets' },
-      { id: 'library_main', name: 'Main Hall', w: 200, h: 100, d: 180, color: '#8B4513', exits: ['library_entrance', 'library_reference', 'library_special'], features: [{type:'person', x:100, y:50, w:40, h:60, label:'👤 Librarian Dog'}] },
+      { id: 'library_main', name: 'Main Hall', w: 200, h: 100, d: 180, color: '#8B4513', exits: ['library_entrance', 'library_reference', 'library_special'], features: [{type:'person', x:100, y:50, w:40, h:60, label:'👤 Librarian Dog'}, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ map_fragment', item: 'map_fragment' }, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ photo', item: 'photo' }, {type:'dog_friend', x:120, y:60, w:50, h:40, label:'📖 Bookworm the Librarian', companion:'library_dog'}] },
       { id: 'library_stacks', name: 'Book Stacks', w: 150, h: 90, d: 120, color: '#654321', exits: ['library_main'], features: [{type:'hint', x:75, y:45, w:50, h:30, label:'📚 Books', item:'letter'}] },
       { id: 'library_reference', name: 'Reference Room', w: 160, h: 90, d: 140, color: '#8B6914', exits: ['library_main'], features: [{type:'hint', x:80, y:45, w:50, h:30, label:'🗺️ Maps', item:'treasure_map'}] },
       { id: 'library_special', name: 'Special Collection', w: 100, h: 80, d: 100, color: '#4a2a0a', exits: ['library_main'], features: [{type:'secret_passage', x:50, y:40, w:40, h:30, label:'🔑 Hidden Door', item:'secret_key'}] }
@@ -936,7 +989,7 @@ export const ZONES: Record<string, Zone> = {
     type: 'fp',
     rooms: [
       { id: 'market_entrance', name: 'Market Gate', w: 120, h: 80, d: 150, color: '#FFD700', exits: ['market_main', 'market_food'], isEntrance: true, entranceZone: 'suburban_streets' },
-      { id: 'market_main', name: 'Main Market', w: 200, h: 100, d: 180, color: '#FF69B4', exits: ['market_entrance', 'market_toys', 'market_treats'], features: [{type:'person', x:100, y:50, w:40, h:60, label:'👤 Market Vendor'}] },
+      { id: 'market_main', name: 'Main Market', w: 200, h: 100, d: 180, color: '#FF69B4', exits: ['market_entrance', 'market_toys', 'market_treats'], features: [{type:'person', x:100, y:50, w:40, h:60, label:'👤 Market Vendor'}, { type: 'treasure', x: 50, y: 50, w: 40, h: 30, label: '✨ pizza_crust', item: 'pizza_crust' }, {type:'dog_friend', x:120, y:60, w:50, h:40, label:'🥖 Baker at the Market', companion:'market_dog'}] },
       { id: 'market_food', name: 'Food Stalls', w: 150, h: 90, d: 120, color: '#FFB6C1', exits: ['market_main'], features: [{type:'food', x:75, y:45, w:40, h:30, label:'🍖 Food', item:'pizza_crust'}] },
       { id: 'market_toys', name: 'Toy Shop', w: 160, h: 90, d: 140, color: '#87CEEB', exits: ['market_main'], features: [{type:'hint', x:80, y:45, w:50, h:30, label:'🧸 Toys', item:'dog_show_ribbon'}] },
       { id: 'market_treats', name: 'Treat Stand', w: 100, h: 80, d: 100, color: '#FFD700', exits: ['market_main'], features: [{type:'food', x:50, y:40, w:40, h:30, label:'🍪 Treats', item:'cookie'}] }
@@ -1056,7 +1109,8 @@ export const ZONES: Record<string, Zone> = {
       { type: 'trap', x: -6, z: -6, id: 'secret_tornado', label: '🌪️ Park Tornado', threat: 'park_tornado' },
       { type: 'lure', x: 6, z: 6, id: 'secret_lure', label: '🍖 Moon Treat' },
       { type: 'return_gate', x: 0, z: -8, id: 'park_secret_exit', label: '🚪 Exit to Streets' },
-    ],
+    
+      { type: 'treasure', x: 4, z: -3, id: 'park_secret_rainbow_bone', label: '✨ rainbow_bone', item: 'rainbow_bone' },],
     returnZone: 'suburban_streets',
     hint: 'The park glows under the moonlight. Your human used to bring you here at night.',
   }

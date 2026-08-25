@@ -110,6 +110,7 @@ export interface RoomFeature {
   label: string;
   locked?: boolean;
   item?: string;
+  companion?: string; // optional companion id met on interact (overrides zone fallback)
 }
 
 // ===== Obstacle & NPC Types =====
