@@ -69,6 +69,7 @@ export class ThreatManager extends BaseRenderer {
   private keysHeld: Set<string> = new Set();
   private boundKeyDown = this.onKeyDown.bind(this);
   private boundKeyUp = this.onKeyUp.bind(this);
+  private boundCanvasClick = this.onCanvasClick.bind(this);
 
   /**
    * Returns true while a threat is active — the game loop and other renderers
@@ -114,6 +115,7 @@ export class ThreatManager extends BaseRenderer {
 
     window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('keyup', this.boundKeyUp);
+    this.canvas?.addEventListener('click', this.boundCanvasClick);
     this.onStateChange?.(this.phase, threat);
   }
 
@@ -210,6 +212,7 @@ export class ThreatManager extends BaseRenderer {
   protected onDestroy(): void {
     window.removeEventListener('keydown', this.boundKeyDown);
     window.removeEventListener('keyup', this.boundKeyUp);
+    this.canvas?.removeEventListener('click', this.boundCanvasClick);
   }
 
   // ===== Type updaters =====
@@ -422,6 +425,7 @@ export class ThreatManager extends BaseRenderer {
       this.currentType = null;
       window.removeEventListener('keydown', this.boundKeyDown);
       window.removeEventListener('keyup', this.boundKeyUp);
+      this.canvas?.removeEventListener('click', this.boundCanvasClick);
       this.onStateChange?.(this.phase, null);
     }, 600);
   }
@@ -453,6 +457,19 @@ export class ThreatManager extends BaseRenderer {
 
   private onKeyUp(e: KeyboardEvent): void {
     this.keysHeld.delete(e.key.toLowerCase());
+  }
+
+  /**
+   * Canvas click fallback: timing and combat minigames resolve on click as
+   * well as SPACE, so mouse-driven players aren't stuck. (sneak/comfort use
+   * hold-to-progress and are unaffected by a single click.)
+   */
+  private onCanvasClick(e: MouseEvent): void {
+    if (this.phase !== 'active') return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (this.currentType === 'timing') this.resolveTiming();
+    else if (this.currentType === 'combat') this.resolveCombat();
   }
 
   private resolveTiming(): void {

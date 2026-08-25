@@ -343,11 +343,16 @@ function triggerZoneThreat(threatId: string): void {
 // ===== Zone / Room Routing =====
 
 /** Start a zone transition overlay. Swaps the zone at the midpoint. */
-function playZoneTransition(zoneId: string, onSwap: () => void): void {
+function playZoneTransition(zoneId: string, onSwap: () => void, priorZoneId: string | null): void {
   const zone = ZONES[zoneId];
   const kind = zone?.transition ?? 'fade';
   // First zone of a run: no prior scene to hide, just swap immediately.
   if (!activeRenderer) { onSwap(); return; }
+  // Navigating to the zone we came from (or the same zone): swap the renderer
+  // in place so a fresh scene (and fresh input state) is produced without an
+  // overlay. The zone id is already recorded to the target by the caller, so
+  // compare against the *prior* zone, not currentZoneId.
+  if (priorZoneId === zoneId) { onSwap(); return; }
   transitions.play(kind, onSwap, 500, { direction: 'right', color: '#0a0a0a' });
 }
 
@@ -363,12 +368,13 @@ function enterZone(zoneId: string): void {
   }
 
   // Record immediately so the map, state, and HUD reflect the new zone at once
+  const priorZoneId = currentZoneId;
   currentZoneId = zoneId;
   State.enterZone(zoneId);
   recordZoneInMap(zone);
 
   // Animate the visual swap (renderer + audio) at the midpoint
-  playZoneTransition(zoneId, () => performZoneEntry(zoneId));
+  playZoneTransition(zoneId, () => performZoneEntry(zoneId), priorZoneId);
 }
 
 /** Core zone-entry logic: swap renderer + start audio (called at transition midpoint). */
@@ -800,6 +806,16 @@ function update(delta: number, time: number): void {
 // Not used by the game itself; purely a test hook.
 (window as any).__turbo = {
   get currentZoneId() { return currentZoneId ?? null; },
+  /** Test hook: player position in world units (TP) or room coords (FP).
+   *  Player fields are private in the renderers — poke them via the bridge. */
+  get playerPos() {
+    const r = activeRenderer as any;
+    if (!r) return null;
+    if (typeof r.playerX === 'number' && typeof r.playerY === 'number') {
+      return { x: r.playerX, y: r.playerY, z: (r.playerZ ?? null), kind: 'tp' as const };
+    }
+    return null;
+  },
   get happiness() { return State.getState().happiness; },
   get threatPhase() { return threatManager.phase; },
   get threatBusy() { return threatManager.isBusy; },
