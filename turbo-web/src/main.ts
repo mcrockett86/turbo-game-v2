@@ -123,10 +123,8 @@ const onKeyDown = (e: KeyboardEvent) => {
 const onCanvasClick = (e: MouseEvent) => {
   if (!canvasEl) return;
   const rect = canvasEl.getBoundingClientRect();
-  const scaleX = canvasEl.width / rect.width;
-  const scaleY = canvasEl.height / rect.height;
-  const cx = (e.clientX - rect.left) * scaleX;
-  const cy = (e.clientY - rect.top) * scaleY;
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
 
   // Endgame overlay takes priority
   if (endgame.active) {
@@ -710,6 +708,22 @@ function showScreen(screen: Screen): void {
 
 // ===== Game Loop =====
 let lastTime = performance.now();
+
+// HiDPI canvas sizing: keep the backing store at display size * dpr so text
+// and edges stay sharp on high-DPI / large windows. Re-applies the CSS-pixel
+// transform and resizes the active renderer. Debounced so a drag-resize
+// doesn't thrash the backing store.
+let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+const onWindowResize = (): void => {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (!canvasEl) return;
+    (activeRenderer as unknown as { resizeToDisplay?: () => void } | null)?.resizeToDisplay?.();
+    // Panels / overlays re-read cssWidth on their next render, so nothing else
+    // to do here.
+  }, 150);
+};
+window.addEventListener('resize', onWindowResize);
 
 function startGameLoop(): void {
   function loop(currentTime: number): void {

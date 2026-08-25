@@ -48,6 +48,15 @@ function ease(t: number): number {
 export class Transitions {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
+
+  // CSS-pixel display size of the shared canvas (backing store is dpr-scaled
+  // by BaseRenderer.resizeToDisplay, so divide by the effective dpr).
+  private cssDims(): { w: number; h: number } {
+    if (!this.canvas) return { w: 0, h: 0 };
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    return { w: this.canvas.width / dpr, h: this.canvas.height / dpr };
+  }
+
   private state: TransitionState | null = null;
   private rafId: number | null = null;
   private lastTs: number = 0;
@@ -129,8 +138,7 @@ export class Transitions {
   private render(): void {
     if (!this.ctx || !this.canvas || !this.state) return;
     const ctx = this.ctx;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const { w: W, h: H } = this.cssDims();
     const p = ease(Math.min(1, this.state.progress));
     const cover = this.state.phase === 'out' ? p : 1 - p;
     const color = this.state.options.color ?? '#000000';
@@ -147,12 +155,13 @@ export class Transitions {
   private renderFade(cover: number, color: string): void {
     if (!this.ctx || !this.canvas) return;
     this.ctx.fillStyle = this.rgba(color, cover);
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillRect(0, 0, this.cssDims().w, this.cssDims().h);
   }
 
   private renderWipe(cover: number, color: string): void {
     if (!this.ctx || !this.canvas) return;
-    const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height;
+    const { w: W, h: H } = this.cssDims();
+    const ctx = this.ctx;
     const dir = this.state?.options.direction ?? 'right';
     const half = Math.ceil(W * cover / 2);
     ctx.fillStyle = this.rgba(color, 1);
@@ -165,7 +174,8 @@ export class Transitions {
 
   private renderZoom(cover: number): void {
     if (!this.ctx || !this.canvas) return;
-    const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height;
+    const { w: W, h: H } = this.cssDims();
+    const ctx = this.ctx;
     const pt = this.state?.options.zoomPoint ?? { x: 0.5, y: 0.5 };
     const cx = pt.x * W, cy = pt.y * H;
     const r = Math.hypot(W, H) * 0.75 * cover;
@@ -180,7 +190,8 @@ export class Transitions {
 
   private renderSlide(cover: number, color: string): void {
     if (!this.ctx || !this.canvas) return;
-    const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height;
+    const { w: W, h: H } = this.cssDims();
+    const ctx = this.ctx;
     const dir = this.state?.options.direction ?? 'right';
     const band = Math.ceil(W * cover / 2);
     ctx.fillStyle = this.rgba(color, 1);

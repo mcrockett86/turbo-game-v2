@@ -16,6 +16,15 @@ interface DialogueState {
 export class DialogueOverlay {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
+
+  // CSS-pixel display size of the shared canvas (backing store is dpr-scaled
+  // by BaseRenderer.resizeToDisplay, so divide by the effective dpr).
+  private cssDims(): { w: number; h: number } {
+    if (!this.canvas) return { w: 0, h: 0 };
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    return { w: this.canvas.width / dpr, h: this.canvas.height / dpr };
+  }
+
   private state: DialogueState | null = null;
   private boundKey = this.onKey.bind(this);
   private boundClick = this.onClick.bind(this);
@@ -70,8 +79,7 @@ export class DialogueOverlay {
       return;
     }
     const ctx = this.ctx;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const { w: W, h: H } = this.cssDims();
 
     // Fade in for the first 200ms, fade out over the last 400ms
     let alpha = 1;

@@ -113,8 +113,8 @@ export class HUDRenderer extends BaseRenderer {
   protected onRender(): void {
     if (!this.ctx || !this.canvas) return;
     const ctx = this.ctx;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const W = this.cssWidth;
+    const H = this.cssHeight;
 
     const dogName = this.getDogName?.() ?? '';
     const happiness = this.getHappiness?.() ?? 100;

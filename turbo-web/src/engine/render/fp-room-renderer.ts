@@ -315,8 +315,8 @@ export class FpRoomRenderer extends BaseRenderer {
 
     // Scale room to fill ~80% of canvas (maintain aspect ratio)
     const scale = this.roomScale();
-    const offsetX = (canvas.width - room.w * scale) / 2;
-    const offsetY = (canvas.height - room.d * scale) / 2;
+    const offsetX = (this.cssWidth - room.w * scale) / 2;
+    const offsetY = (this.cssHeight - room.d * scale) / 2;
 
     // Draw floor
     ctx.fillStyle = room.color;
@@ -333,14 +333,14 @@ export class FpRoomRenderer extends BaseRenderer {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(room.name, canvas.width / 2, offsetY - 15);
+    ctx.fillText(room.name, this.cssWidth / 2, offsetY - 15);
   }
 
   /** Compute the uniform scale factor that fits the room into ~80% of the canvas. */
   private roomScale(): number {
     if (!this.canvas || !this.room) return 1;
-    const maxW = this.canvas.width * 0.8;
-    const maxH = this.canvas.height * 0.8;
+    const maxW = this.cssWidth * 0.8;
+    const maxH = this.cssHeight * 0.8;
     return Math.min(maxW / this.room.w, maxH / this.room.d);
   }
 
@@ -348,29 +348,29 @@ export class FpRoomRenderer extends BaseRenderer {
   private toCanvasX(wx: number): number {
     if (!this.canvas || !this.room) return wx;
     const scale = this.roomScale();
-    const offsetX = (this.canvas.width - this.room.w * scale) / 2;
+    const offsetX = (this.cssWidth - this.room.w * scale) / 2;
     return offsetX + wx * scale;
   }
 
   private toCanvasY(wy: number): number {
     if (!this.canvas || !this.room) return wy;
     const scale = this.roomScale();
-    const offsetY = (this.canvas.height - this.room.d * scale) / 2;
+    const offsetY = (this.cssHeight - this.room.d * scale) / 2;
     return offsetY + wy * scale;
   }
 
-  /** Convert a canvas pixel coordinate to world (room) coordinate. */
+  /** Convert a canvas CSS-pixel coordinate to world (room) coordinate. */
   private toWorldX(cx: number): number {
     if (!this.canvas || !this.room) return cx;
     const scale = this.roomScale();
-    const offsetX = (this.canvas.width - this.room.w * scale) / 2;
+    const offsetX = (this.cssWidth - this.room.w * scale) / 2;
     return (cx - offsetX) / scale;
   }
 
   private toWorldY(cy: number): number {
     if (!this.canvas || !this.room) return cy;
     const scale = this.roomScale();
-    const offsetY = (this.canvas.height - this.room.d * scale) / 2;
+    const offsetY = (this.cssHeight - this.room.d * scale) / 2;
     return (cy - offsetY) / scale;
   }
   
@@ -545,12 +545,12 @@ export class FpRoomRenderer extends BaseRenderer {
   private onMouseDown(event: MouseEvent): void {
     if (!this.canvas || !this.room) return;
 
-    // Convert screen coordinates to canvas coordinates
+    // Convert screen coordinates to canvas CSS-pixel coordinates.
+    // (The backing store may be dpr-scaled, but drawing math is in CSS px,
+    // so the mapping is 1:1 between the rect and the CSS-pixel space.)
     const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
-    const canvasX = (event.clientX - rect.left) * scaleX;
-    const canvasY = (event.clientY - rect.top) * scaleY;
+    const canvasX = event.clientX - rect.left;
+    const canvasY = event.clientY - rect.top;
 
     // Convert canvas coordinates to world (room) coordinates
     const roomX = this.toWorldX(canvasX);

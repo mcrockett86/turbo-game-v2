@@ -8,10 +8,41 @@ export abstract class BaseRenderer {
   protected canvas: HTMLCanvasElement | null = null;
   protected ctx: CanvasRenderingContext2D | null = null;
   private initialized = false;
-  
-  // Dimensions (set by subclasses after init)
+
+  // CSS-pixel display size (backing store is cssW * dpr on HiDPI screens).
+  // Drawing code should use these for layout math so it works in CSS pixels
+  // regardless of the device pixel ratio. `width`/`height` (the raw backing
+  // store) are kept for anything that genuinely needs device pixels.
+  private cssW = 0;
+  private cssH = 0;
+
   get width(): number { return this.canvas?.width ?? 0; }
   get height(): number { return this.canvas?.height ?? 0; }
+  get cssWidth(): number { return this.cssW; }
+  get cssHeight(): number { return this.cssH; }
+
+  /**
+   * Size the canvas backing store to its CSS display size * devicePixelRatio
+   * (capped at 2x for perf) and set the ctx transform so all drawing code
+   * continues to use CSS pixels unchanged. Call on init and on resize.
+   */
+  resizeToDisplay(): void {
+    if (!this.canvas) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cssW = Math.max(1, Math.round(rect.width || this.canvas.clientWidth || 1));
+    const cssH = Math.max(1, Math.round(rect.height || this.canvas.clientHeight || 1));
+    this.cssW = cssW;
+    this.cssH = cssH;
+
+    const bw = Math.round(cssW * dpr);
+    const bh = Math.round(cssH * dpr);
+    if (this.canvas.width !== bw || this.canvas.height !== bh) {
+      this.canvas.width = bw;
+      this.canvas.height = bh;
+    }
+    this.ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
   
   /**
    * Initialize with a canvas element and optional zone/room data.
@@ -27,8 +58,11 @@ export abstract class BaseRenderer {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error(`[${this.constructor.name}] Failed to get 2D context from canvas`);
     this.ctx = ctx;
-    
-    // Canvas dimensions should match CSS display size for sharp rendering
+
+    // Match the backing store to the display size (HiDPI-aware) and set the
+    // CSS-pixel transform before the subclass lays anything out.
+    this.resizeToDisplay();
+
     if (canvas.width === 0 || canvas.height === 0) {
       console.error(`[${this.constructor.name}] Canvas has zero dimensions: ${canvas.width}x${canvas.height}`);
     }
@@ -79,6 +113,8 @@ export abstract class BaseRenderer {
     this.onDestroy();
     this.canvas = null;
     this.ctx = null;
+    this.cssW = 0;
+    this.cssH = 0;
     this.initialized = false;
   }
   

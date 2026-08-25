@@ -31,6 +31,15 @@ interface Button {
 export class Endgame {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
+
+  // CSS-pixel display size of the shared canvas (backing store is dpr-scaled
+  // by BaseRenderer.resizeToDisplay, so divide by the effective dpr).
+  private cssDims(): { w: number; h: number } {
+    if (!this.canvas) return { w: 0, h: 0 };
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    return { w: this.canvas.width / dpr, h: this.canvas.height / dpr };
+  }
+
   private outcome: EndgameResult | null = null;
   private score: Score | null = null;
   private buttons: Button[] = [];
@@ -92,8 +101,7 @@ export class Endgame {
 
   private layoutButtons(): void {
     if (!this.canvas) return;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const { w: W, h: H } = this.cssDims();
     const bw = 220, bh = 54;
     const y = H - 130;
     this.buttons = [
@@ -131,8 +139,7 @@ export class Endgame {
   private render(): void {
     if (!this.ctx || !this.canvas || !this.outcome || !this.score) return;
     const ctx = this.ctx;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const { w: W, h: H } = this.cssDims();
 
     // Background: solid dark with a subtle radial glow
     ctx.fillStyle = this.outcome === 'victory' ? 'rgba(10, 30, 15, 0.96)' : 'rgba(30, 8, 8, 0.96)';

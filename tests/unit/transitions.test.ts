@@ -18,6 +18,7 @@ function makeCanvas(): HTMLCanvasElement {
   const ctxStub = {
     clearRect: vi.fn(),
     fillRect: vi.fn(),
+    setTransform: vi.fn(),
     beginPath: vi.fn(),
     rect: vi.fn(),
     arc: vi.fn(),

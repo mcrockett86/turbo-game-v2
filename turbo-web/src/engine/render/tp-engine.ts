@@ -127,8 +127,8 @@ export class TpEngineRenderer extends BaseRenderer {
   protected onRender(): void {
     if (!this.ctx || !this.canvas || !this.zone) return;
     const ctx = this.ctx;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const W = this.cssWidth;
+    const H = this.cssHeight;
 
     // Sky background
     ctx.fillStyle = this.zone.skyColor ?? '#87CEEB';

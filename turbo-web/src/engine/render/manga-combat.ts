@@ -47,8 +47,8 @@ export class MangaCombatOverlay extends BaseRenderer {
   protected onRender(): void {
     if (!this.playing || !this.ctx || !this.canvas || !this.threat) return;
     const ctx = this.ctx;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const W = this.cssWidth;
+    const H = this.cssHeight;
     const t = Math.min(1, this.timer / this.DURATION);
 
     // Flash on entry

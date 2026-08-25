@@ -26,6 +26,15 @@ interface CompanionRow {
 export class CompanionPanel {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
+
+  // CSS-pixel display size of the shared canvas (backing store is dpr-scaled
+  // by BaseRenderer.resizeToDisplay, so divide by the effective dpr).
+  private cssDims(): { w: number; h: number } {
+    if (!this.canvas) return { w: 0, h: 0 };
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    return { w: this.canvas.width / dpr, h: this.canvas.height / dpr };
+  }
+
   private rows: CompanionRow[] = [];
   private visible = false;
 
@@ -79,8 +88,7 @@ export class CompanionPanel {
   private render(snapshot?: CompanionSnapshot): void {
     if (!this.ctx || !this.canvas) return;
     const ctx = this.ctx;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const { w: W, h: H } = this.cssDims();
 
     const companionsMet = snapshot?.companionsMet ?? new Set();
     const active = snapshot?.activeCompanion ?? null;

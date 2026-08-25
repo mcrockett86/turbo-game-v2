@@ -166,8 +166,8 @@ export class ThreatManager extends BaseRenderer {
     if (!this.currentThreat) return;
 
     const ctx = this.ctx;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const W = this.cssWidth;
+    const H = this.cssHeight;
 
     // Dark backdrop
     ctx.fillStyle = 'rgba(10, 10, 25, 0.88)';

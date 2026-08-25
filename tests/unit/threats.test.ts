@@ -22,7 +22,7 @@ function makeCanvas(): HTMLCanvasElement {
   canvas.width = 640;
   canvas.height = 360;
   const ctxStub = {
-    clearRect: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(), rect: vi.fn(),
+    clearRect: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), setTransform: vi.fn(),
     arc: vi.fn(), fill: vi.fn(), stroke: vi.fn(), save: vi.fn(), restore: vi.fn(),
     moveTo: vi.fn(), lineTo: vi.fn(), closePath: vi.fn(),
     set fillStyle(v: unknown) {}, set strokeStyle(v: unknown) {},

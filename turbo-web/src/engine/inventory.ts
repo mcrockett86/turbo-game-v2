@@ -54,8 +54,8 @@ export class InventoryRenderer extends BaseRenderer {
   // ===== Geometry =====
 
   private gridArea() {
-    const W = this.canvas?.width ?? 1280;
-    const H = this.canvas?.height ?? 720;
+    const W = this.cssWidth || 1280;
+    const H = this.cssHeight || 720;
     const cell = 72;
     const gap = 8;
     const gridW = 4 * cell + 3 * gap;
@@ -83,18 +83,16 @@ export class InventoryRenderer extends BaseRenderer {
     // Hover tracking
     if (!this.visible || !this.canvas) return;
     const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
-    const mx = (this.mouseX - rect.left) * scaleX;
-    const my = (this.mouseY - rect.top) * scaleY;
+    const mx = this.mouseX - rect.left;
+    const my = this.mouseY - rect.top;
     this.hoveredSlot = this.slotAt(mx, my);
   }
 
   protected onRender(): void {
     if (!this.visible || !this.ctx || !this.canvas) return;
     const ctx = this.ctx;
-    const W = this.canvas.width;
-    const H = this.canvas.height;
+    const W = this.cssWidth;
+    const H = this.cssHeight;
 
     // Backdrop
     ctx.fillStyle = 'rgba(10, 10, 25, 0.92)';
@@ -198,10 +196,8 @@ export class InventoryRenderer extends BaseRenderer {
   private onClick(e: MouseEvent): void {
     if (!this.canvas) return;
     const rect = this.canvas.getBoundingClientRect();
-    const scaleX = this.canvas.width / rect.width;
-    const scaleY = this.canvas.height / rect.height;
-    const mx = (e.clientX - rect.left) * scaleX;
-    const my = (e.clientY - rect.top) * scaleY;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
     const slotIndex = this.slotAt(mx, my);
     if (slotIndex === -1) return;
 
