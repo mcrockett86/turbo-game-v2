@@ -45,7 +45,7 @@ const PLAYER_RADIUS = 12;
 const SCENT_EMIT_INTERVAL = 0.12; // seconds
 const SCENT_PARTICLE_LIFE = 3.0; // seconds
 const NPC_WANDER_INTERVAL = 4.0; // seconds
-const INTERACT_RADIUS = 28; // px — proximity for feature/NPC interaction
+const INTERACT_RADIUS = 34; // px (screen) — proximity for auto-pickup; independent of SPREAD
 const WORLD_SCALE = 12; // world units -> px
 // World magnification on screen (render spread). Also scales the INTERACT_RADIUS
 // trigger in world terms so the world-space trigger distance is constant no
@@ -140,6 +140,9 @@ export class TpEngineRenderer extends BaseRenderer {
   onFeatureInteract?: (feature: Feature) => void;
   onNpcInteract?: (npc: NPC) => void;
   onReturnGate?: (zoneId: string) => void;
+
+  /** Debug/test access to the TP player's world position. */
+  get playerPos(): { x: number; y: number } { return { x: this.playerX, y: this.playerY }; }
 
   // ===== BaseRenderer contract =====
 
@@ -412,11 +415,17 @@ export class TpEngineRenderer extends BaseRenderer {
   }
 
   private collidesWithObstacle(x: number, y: number): boolean {
-    const r = PLAYER_RADIUS / WORLD_SCALE;
+    const r = PLAYER_RADIUS; // px (screen)
+    const scale = WORLD_SCALE * SPREAD;
     for (const ob of this.obstacles) {
-      const dx = x - ob.x;
-      const dy = y - ob.z;
-      const radius = (ob.width ?? 2) * 0.5;
+      const dx = (x - ob.x) * scale;
+      const dy = (y - ob.z) * scale;
+      // Collision radius in screen px (the drawn size). `width`/`height` in the
+      // layout data are unscaled world units, so map them to px with a modest
+      // factor; prefer `height` (the object's footprint) over the long `width`
+      // of fences/benches which would otherwise create huge collision circles.
+      const world = ob.height ?? Math.min(ob.width ?? 2, 2);
+      const radius = world * 6;
       if (dx * dx + dy * dy < (r + radius) * (r + radius)) return true;
     }
     return false;

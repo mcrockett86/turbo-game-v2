@@ -158,6 +158,11 @@ window.addEventListener('keyup', onKeyUp);
 (window as any).__turboZoneIds = Object.keys(ZONES);
 (window as any).__turboStateHappiness = () => State.happiness;
 (window as any).__turboThreats = THREATS; // for stability test threat-cycle driving
+// TP player world position (debug/test bridge for collision + spread checks).
+(window as any).__turboPlayerPos = (): { x: number; y: number } | null => {
+  const r: any = (window as any).__activeRenderer?.();
+  return r && typeof r.playerPos === 'object' ? r.playerPos : null;
+};
 (window as any).__turboStateGameOver = () => State.getState().gameOverTime !== null;
 (window as any).__turboZoneThreats = (zoneId: string) => !!(ZONES[zoneId]?.threat);
 // A stable set of {zone, threat} pairs the stability test can drive cycles with.
