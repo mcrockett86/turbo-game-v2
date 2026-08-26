@@ -238,6 +238,12 @@
 > - **Tests:** 79 unit + 62 E2E green (added `tests/m2-render.spec.ts` asserting every TP zone renders content without page errors). tsc clean, build 42.30 kB gzip (< 45 kB budget).
 
 | **M2** | 7.1 (TP backgrounds), 7.6 (obstacles) | 1.5 days | Measure, re-baseline if > +10 ms |
+> **M3 — DONE (2026-08-26).** TP dog model (7.2) + particle layer (7.7) landed:
+> - **7.2 `renderDogV2`** (`tp-engine.ts`): radial-gradient body + chest/belly, head with snout + nose, droop/perk ears (perk when moving), wagging tail (quadratic curve, 8 Hz), 2-frame walk legs, eyes, a rounded-rect name pill (player name in gold), a player glow ring (`shadowBlur` = accent), and idle breathing (body scaleY ±2% at 0.5 Hz). `movePhase` advances only while moving (in `updatePlayer`) so NPCs idle-breathe and the player walks/wags.
+> - **7.7 particles** (new `engine/render/particles.ts`): an object-pooled (max 40, no per-frame alloc) `ParticleSystem` with shapes `circle|petal|ripple|glint`. Zone-driven ambient spawners in `tp-engine.updateParticles`/`spawnAmbient`: leaf petals (forest/park), sand puff (beach), water ripples (lake/waterfall), firefly/crystal glints (cave/secret/mountain), drifting motes (default). `burstAtWorld()` fires a pickup burst, hooked into `main.ts` item collection. Threat success/fail flash is deferred to M5 (it belongs with the minigame pass).
+> - **Perf:** p50 16.7→16.7ms, p95 16.8→16.8ms (+0.0ms), max 33.4ms, 0 dropped — inside the +10ms gate, **no re-baseline needed** (`perf/baseline-m3pre.json` vs `perf/baseline-m3.json`).
+> - **Tests:** 84 unit (added 5 in `tests/unit/particles.test.ts`) + 66 E2E green (added `tests/m3-particles.spec.ts`: ambient particles spawn + pool stays bounded). tsc clean, build 42.30 kB gzip (< 45 kB budget).
+
 | **M3** | 7.2 (dog model), 7.7 (particles) | 1.5 days | Measure |
 | **M4** | 7.3 (FP sprites), 7.4 (room dressing) | 2 days | Measure |
 | **M5** | 7.9 (threat minigame), final polish | 1 day | Final re-baseline |

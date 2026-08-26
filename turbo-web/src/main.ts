@@ -163,6 +163,13 @@ window.addEventListener('keyup', onKeyUp);
   const r: any = (window as any).__activeRenderer?.();
   return r && typeof r.playerPos === 'object' ? r.playerPos : null;
 };
+// 7.7 live particle count (debug/test bridge).
+(window as any).__turboLiveParticles = (): number => {
+  const r: any = (window as any).__activeRenderer?.();
+  return r && typeof r.particles === 'object' && typeof r.particles.liveCount === 'number'
+    ? r.particles.liveCount
+    : 0;
+};
 (window as any).__turboStateGameOver = () => State.getState().gameOverTime !== null;
 (window as any).__turboZoneThreats = (zoneId: string) => !!(ZONES[zoneId]?.threat);
 // A stable set of {zone, threat} pairs the stability test can drive cycles with.
@@ -597,7 +604,7 @@ function showCompanionDialogue(companionId: string): void {
   setTimeout(() => Audio.endDuck(), 6000);
 }
 
-function handleFeature(feature: { type: string; item?: string; gate?: string; threat?: string }, zone: Zone): void {
+function handleFeature(feature: { type: string; item?: string; gate?: string; threat?: string; x?: number; z?: number }, zone: Zone): void {
   const ftype = feature.type;
 
   // Zone gate (a feature carrying a `gate` target zone) — hub navigation
@@ -650,6 +657,9 @@ function handleFeature(feature: { type: string; item?: string; gate?: string; th
   if (feature.item && ITEMS[feature.item]) {
     if (State.collectItem(feature.item)) {
       Audio.playSfx('pickup');
+      // 7.7 pickup burst at the feature's location (TP zones).
+      const r = (window as any).__activeRenderer?.();
+      if (r && typeof r.burstAtWorld === 'function' && feature.x != null && feature.z != null) r.burstAtWorld(feature.x, feature.z);
     }
     return;
   }

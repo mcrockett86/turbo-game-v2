@@ -15,6 +15,7 @@
  */
 
 import { BaseRenderer } from './base-renderer';
+import { ParticleSystem } from './particles';
 import type { Zone, Obstacle, NPC, Feature, FeatureType } from '../../types';
 
 // ===== Internal types =====
@@ -118,6 +119,7 @@ export class TpEngineRenderer extends BaseRenderer {
   private playerFacing = 0; // radians
   private playerColor = '#ffffff';
   private playerAccent = '#4a9eff';
+  private movePhase = 0; // advances while moving; drives the walk cycle + tail wag
 
   // World
   private obstacles: Obstacle[] = [];
@@ -129,6 +131,10 @@ export class TpEngineRenderer extends BaseRenderer {
   // Background detail (7.1) — precomputed once per zone, stable + cheap.
   private bgDetail: BgDetail | null = null;
   private silhouette: Path2D | null = null;
+
+  // 7.7 particle layer: ambient zone effects + pickup bursts.
+  private particles = new ParticleSystem();
+  private particleAccumulator = 0;
 
   // Input
   private keysPressed: Set<string> = new Set();
@@ -148,6 +154,18 @@ export class TpEngineRenderer extends BaseRenderer {
 
   /** Debug/test access to the TP player's world position. */
   get playerPos(): { x: number; y: number } { return { x: this.playerX, y: this.playerY }; }
+
+  /**
+   * 7.7 pickup burst: a short particle explosion at a world position (e.g. an
+   * item feature being collected). Screen-space, driven by the same SPREAD.
+   */
+  burstAtWorld(wx: number, wz: number, color = '#ffd700'): void {
+    const W = this.cssWidth;
+    const playerScreenY = this.cssHeight * PLAYER_SCREEN_Y;
+    const sx = W / 2 + (wx - this.playerX) * WORLD_SCALE * SPREAD;
+    const sy = playerScreenY + (wz - this.playerY) * WORLD_SCALE * SPREAD;
+    this.particles.burst(sx, sy, color, 12);
+  }
 
   // ===== BaseRenderer contract =====
 
@@ -193,6 +211,7 @@ export class TpEngineRenderer extends BaseRenderer {
     this.updateNpcs(delta);
     this.updateScent(delta, time);
     this.checkInteractions();
+    this.updateParticles(delta);
   }
 
   protected onRender(): void {
@@ -248,11 +267,16 @@ export class TpEngineRenderer extends BaseRenderer {
     for (const npc of this.npcs) {
       const sy = toScreenY(npc.z);
       if (aboveHorizon(sy)) continue;
-      this.renderDog(toScreenX(npc.x), sy, npc.color, npc.accentColor, npc.facing, npc.name);
+      this.renderDog(toScreenX(npc.x), sy, npc.color, npc.accentColor, npc.facing, npc.name, Math.random() * 10);
     }
 
     // Player (anchored in the lower ground band so it reads as on the ground)
-    this.renderDog(W / 2, playerScreenY, this.playerColor, this.playerAccent, this.playerFacing, 'You');
+    this.renderDog(W / 2, playerScreenY, this.playerColor, this.playerAccent, this.playerFacing, 'You', this.movePhase, { isPlayer: true });
+
+    // 7.7 ambient particles (leaf petals, ripples, glints, sand, motes)
+    if (this.particles.liveCount > 0) {
+      this.particles.draw(ctx, performance.now());
+    }
 
     // "Press E" prompt when standing at a confirmable threat/gate or an NPC
     const promptTarget = this.pendingInteract?.label ?? (this.pendingNpc ? this.pendingNpc.name : null);
@@ -396,6 +420,8 @@ export class TpEngineRenderer extends BaseRenderer {
     this.interactQueued = false;
     this.bgDetail = null;
     this.silhouette = null;
+    this.particles.clear();
+    this.particleAccumulator = 0;
   }
 
   // ===== Movement =====
@@ -415,6 +441,7 @@ export class TpEngineRenderer extends BaseRenderer {
       dx /= len;
       dy /= len;
       this.playerFacing = Math.atan2(dy, dx);
+      this.movePhase += delta; // advance the walk/tail cycle while moving
 
       const newX = this.playerX + dx * speed * delta;
       const newY = this.playerY + dy * speed * delta;
@@ -515,6 +542,86 @@ export class TpEngineRenderer extends BaseRenderer {
 
     for (const p of this.scentTrail) p.age += delta;
     this.scentTrail = this.scentTrail.filter(p => p.age < p.life);
+  }
+
+  // ===== 7.7: Ambient zone particles =====
+
+  /** Spawn zone-specific ambient particles at a low, bounded rate. */
+  private updateParticles(delta: number): void {
+    const zone = this.zone!;
+    const variant = zoneVariant(zone.id);
+    // Different zones emit at different cadences (seconds per spawn).
+    const cadence: Record<ZoneVariant, number> = {
+      forest: 0.12, park: 0.16, beach: 0.2, lake: 0.3, waterfall: 0.25,
+      mountain: 0.4, cave: 0.35, secret: 0.4, default: 0.6,
+    };
+    this.particleAccumulator += delta;
+    const interval = cadence[variant] ?? 0.5;
+    while (this.particleAccumulator >= interval) {
+      this.particleAccumulator -= interval;
+      this.spawnAmbient(variant);
+    }
+    this.particles.update(delta);
+  }
+
+  private spawnAmbient(variant: ZoneVariant): void {
+    const W = this.cssWidth || 900;
+    const H = this.cssHeight || 600;
+    const horizon = H * HORIZON_Y;
+    const groundTop = horizon + 10;
+    const groundBottom = H - 10;
+    const rx = () => Math.random() * W;
+    const ry = () => groundTop + Math.random() * (groundBottom - groundTop);
+
+    switch (variant) {
+      case 'forest':
+      case 'park':
+        // Leaf petals: drift down with a little lateral sway.
+        this.particles.spawn({
+          x: rx(), y: horizon - 5,
+          vx: (Math.random() - 0.5) * 20, vy: 25 + Math.random() * 20,
+          size: 3 + Math.random() * 2,
+          color: Math.random() > 0.5 ? '#7cb342' : '#558b2f',
+          life: 4 + Math.random() * 2, shape: 'petal', spin: 2 + Math.random() * 2,
+        });
+        break;
+      case 'beach':
+        // Sand puff: small dots drifting diagonally (wind).
+        this.particles.spawn({
+          x: Math.random() > 0.5 ? 0 : W, y: ry(),
+          vx: (Math.random() > 0.5 ? 1 : -1) * (30 + Math.random() * 20), vy: -5,
+          size: 1.5 + Math.random() * 1.5,
+          color: '#e8d5a8', life: 3 + Math.random() * 2, shape: 'circle',
+        });
+        break;
+      case 'lake':
+      case 'waterfall':
+        // Water ripples: expanding circles at a random ground point.
+        this.particles.spawn({
+          x: rx(), y: ry(), vx: 0, vy: 0,
+          size: 2 + Math.random() * 2,
+          color: 'rgba(120,190,230,0.8)', life: 1.6 + Math.random() * 0.8, shape: 'ripple',
+        });
+        break;
+      case 'cave':
+      case 'secret':
+      case 'mountain':
+        // Firefly / crystal glints: pulsing dots.
+        this.particles.spawn({
+          x: rx(), y: ry(), vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10,
+          size: 1.5 + Math.random() * 1.5,
+          color: variant === 'secret' ? '#b39dff' : '#fff176',
+          life: 2 + Math.random() * 2, shape: 'glint',
+        });
+        break;
+      default:
+        // Subtle drifting motes for generic zones.
+        this.particles.spawn({
+          x: rx(), y: ry(), vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
+          size: 1 + Math.random(), color: 'rgba(255,255,255,0.5)',
+          life: 2 + Math.random() * 2, shape: 'circle',
+        });
+    }
   }
 
   // ===== Interactions =====
@@ -821,47 +928,145 @@ export class TpEngineRenderer extends BaseRenderer {
     ctx.fillText(feature.label, sx, sy - size - 10);
   }
 
-  private renderDog(sx: number, sy: number, color: string, accent: string, facing: number, name: string): void {
+  private renderDog(sx: number, sy: number, color: string, accent: string, facing: number, name: string, phase = 0, opts: { isPlayer?: boolean } = {}): void {
     if (!this.ctx) return;
     const ctx = this.ctx;
+    const moving = Math.sin(phase * 8) !== 0; // phase advances only while moving
+    const t = phase * 8; // walk/tail frequency
 
-    // Shadow
+    const fx = Math.cos(facing);
+    const fy = Math.sin(facing);
+    // Perpendicular (rotate facing +90°)
+    const px = -Math.sin(facing);
+    const py = Math.cos(facing);
+
+    // Shadow (slightly larger)
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath();
-    ctx.ellipse(sx, sy + 10, 12, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy + 10, 14, 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body
-    ctx.fillStyle = color;
+    // Player glow ring (so you always know who's you)
+    if (opts.isPlayer) {
+      ctx.save();
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 8;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.8;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 10, 16, 8, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    // Idle breathing: gentle body scaleY oscillation when not moving
+    const breathe = moving ? 1 : 1 + 0.02 * Math.sin(performance.now() / 1000 * Math.PI);
+
+    // Tail (behind the body, opposite facing); wags when moving
+    const tailAngle = facing + Math.PI + (moving ? Math.sin(t * 8) * 0.26 : 0);
+    const tx = sx + Math.cos(tailAngle) * 13;
+    const ty = sy + Math.sin(tailAngle) * 8 - 2;
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.ellipse(sx, sy, 12, 9, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(sx - fx * 6, sy - fy * 4);
+    ctx.quadraticCurveTo(tx, ty, tx + Math.cos(tailAngle) * 6, ty + Math.sin(tailAngle) * 3);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
 
-    // Head (offset in facing direction)
-    const hx = sx + Math.cos(facing) * 10;
-    const hy = sy + Math.sin(facing) * 10 - 4;
-    ctx.fillStyle = color;
+    // Body (elongated ellipse, oriented along facing, radial gradient for depth)
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(facing);
+    ctx.scale(1, breathe);
+    const bodyGrad = ctx.createLinearGradient(0, -9, 0, 9);
+    bodyGrad.addColorStop(0, shade(color, 0.28));
+    bodyGrad.addColorStop(0.5, color);
+    bodyGrad.addColorStop(1, shade(color, -0.25));
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 14, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Chest / belly (lighter, toward the front)
+    ctx.fillStyle = shade(color, 0.35);
+    ctx.beginPath();
+    ctx.ellipse(7, 2, 5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Legs (2-frame walk cycle) — small ellipses under the body
+    const legSwing = moving ? Math.sin(t) * 4 : 0;
+    const legSwing2 = moving ? Math.sin(t + Math.PI) * 4 : 0;
+    ctx.fillStyle = shade(color, -0.2);
+    for (const [off, swing] of [[-6, legSwing], [-2, legSwing2], [2, legSwing], [6, legSwing2]] as const) {
+      const lx = sx + px * off + fx * swing * 0.4;
+      const ly = sy + py * off + fy * swing * 0.4 + 6;
+      ctx.beginPath();
+      ctx.ellipse(lx, ly, 2.5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Head (offset in facing direction) + snout
+    const hx = sx + fx * 12;
+    const hy = sy + fy * 8 - 4;
+    const headGrad = ctx.createRadialGradient(hx - 2, hy - 2, 1, hx, hy, 8);
+    headGrad.addColorStop(0, shade(color, 0.3));
+    headGrad.addColorStop(1, color);
+    ctx.fillStyle = headGrad;
     ctx.beginPath();
     ctx.arc(hx, hy, 7, 0, Math.PI * 2);
     ctx.fill();
+    // Snout
+    ctx.fillStyle = shade(color, 0.15);
+    ctx.beginPath();
+    ctx.ellipse(hx + fx * 5, hy + fy * 4, 4, 3, facing, 0, Math.PI * 2);
+    ctx.fill();
+    // Nose
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(hx + fx * 8, hy + fy * 6, 1.4, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Ears
+    // Ears (droop when idle, perk up when moving)
+    const perk = moving ? 6 : 3; // ear height offset (perk = more up)
     ctx.fillStyle = accent;
-    ctx.beginPath();
-    ctx.arc(hx - 4, hy - 5, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(hx + 4, hy - 5, 3, 0, Math.PI * 2);
-    ctx.fill();
+    for (const s of [-1, 1]) {
+      const ex = hx + px * s * 5;
+      const ey = hy - perk - 2;
+      ctx.beginPath();
+      ctx.ellipse(ex, ey, 2.6, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // Name label
-    ctx.fillStyle = '#ffffff';
+    // Eyes (two dots on the head for personality)
+    ctx.fillStyle = '#1a1a1a';
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(hx + px * s * 3 + fx * 2, hy - 1, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Name label — rounded pill with 80% dark fill
     ctx.font = '10px sans-serif';
+    const nw = ctx.measureText(name).width;
+    const pillW = nw + 12;
+    const pillH = 15;
+    const pillX = sx - pillW / 2;
+    const pillY = sy + 16;
+    ctx.fillStyle = 'rgba(10,10,25,0.8)';
+    ctx.beginPath();
+    (ctx as any).roundRect
+      ? (ctx as any).roundRect(pillX, pillY, pillW, pillH, 6)
+      : ctx.rect(pillX, pillY, pillW, pillH);
+    ctx.fill();
+    ctx.fillStyle = opts.isPlayer ? '#ffd700' : '#ffffff';
     ctx.textAlign = 'center';
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeText(name, sx, sy + 24);
-    ctx.fillText(name, sx, sy + 24);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name, sx, pillY + pillH / 2);
+    ctx.textBaseline = 'alphabetic';
   }
 
   // ===== Input =====
