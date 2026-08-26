@@ -231,6 +231,12 @@
 | **M1** | 7.5 (DPR), 7.8 (CSS polish) | 1 day | Yes (DPR changes draw area) |
 
 > **M1 — DONE (2026-08-25).** HiDPI/DPR canvas scaling landed (`82a7d91`): `BaseRenderer.resizeToDisplay()` sizes the backing store to CSS display size × `devicePixelRatio` (capped at 2×) and applies a CSS-pixel transform so all drawing code is unchanged; every renderer's layout + click-mapping math now uses `cssWidth`/`cssHeight`. Verified sharp at dpr 2 (1800×1440 backing store for a 900px viewport), 79/79 unit + 52/52 E2E green. CSS polish (`da88051`): screen fade-in on show, smoother happiness-bar transition, zone-indicator hook. **Note:** the dog-card idle-sway was cut — it fought Playwright's click-stability check (infinite transforms never "settle"); hover-lift stays since it settles. Keep any future canvas/DOM animation that must be clickable to a *settled* end state, or gate it behind a non-`transform` property.
+> **M2 — DONE (2026-08-25).** TP layered backgrounds (7.1) + obstacle detail (7.6) landed in `tp-engine.ts`:
+> - **7.1:** gradient sky (sky→near-white at horizon), a parallax horizon silhouette (precomputed `Path2D`, scrolls at 0.15× camera), gradient ground, seeded ground-detail scatter (mulberry32 by zone id, so stable per zone), and a soft radial vignette. New helpers: `seededRandom`, `hashString`, `shade`, `zoneVariant`, `buildBackground`/`renderBackground`.
+> - **7.6:** detailed tree (tapered trunk + 3 canopy circles + highlight + shadow), bush cluster, bench (legs/seat/backrest + shadow), fence (rails + gradient posts), plus 4 new data-driven types — `flower`, `rock`, `lamp_post`, `crystal` — added to the `Obstacle` union in `types.ts` (optional; existing zones keep their current obstacles).
+> - **Perf:** p50 16.7→16.7ms, p95 16.7→16.8ms (+0.1ms), max 50→33ms, 0 dropped — well inside the +10ms drift gate, **no re-baseline needed**. Baselines: `perf/baseline-m2pre.json` (before) vs `perf/baseline-m2.json` (after).
+> - **Tests:** 79 unit + 62 E2E green (added `tests/m2-render.spec.ts` asserting every TP zone renders content without page errors). tsc clean, build 42.30 kB gzip (< 45 kB budget).
+
 | **M2** | 7.1 (TP backgrounds), 7.6 (obstacles) | 1.5 days | Measure, re-baseline if > +10 ms |
 | **M3** | 7.2 (dog model), 7.7 (particles) | 1.5 days | Measure |
 | **M4** | 7.3 (FP sprites), 7.4 (room dressing) | 2 days | Measure |

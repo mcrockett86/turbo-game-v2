@@ -1,0 +1,17 @@
+{
+  "label": "m2pre",
+  "recordedAt": "2026-08-26T00:28:41.554Z",
+  "gitCommit": "a373b3d5cf84996bd2b36f155179ba9bdecb1004",
+  "scenario": "navigate-all",
+  "frames": {
+    "samples": 600,
+    "totalFrames": 1417,
+    "avgMs": 16.7495,
+    "p50Ms": 16.700000000000728,
+    "p95Ms": 16.700000000000728,
+    "maxMs": 50,
+    "droppedFrames": 0
+  },
+  "zoneSwaps": 18,
+  "notes": ""
+}

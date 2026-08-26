@@ -116,7 +116,7 @@ export interface RoomFeature {
 // ===== Obstacle & NPC Types =====
 
 export interface Obstacle {
-  type: 'fence' | 'tree' | 'bench' | 'bush';
+  type: 'fence' | 'tree' | 'bench' | 'bush' | 'flower' | 'rock' | 'lamp_post' | 'crystal';
   x: number;
   z: number;
   width?: number;

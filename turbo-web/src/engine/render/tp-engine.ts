@@ -47,6 +47,55 @@ const SCENT_PARTICLE_LIFE = 3.0; // seconds
 const NPC_WANDER_INTERVAL = 4.0; // seconds
 const INTERACT_RADIUS = 28; // px — proximity for feature/NPC interaction
 const WORLD_SCALE = 12; // world units -> px
+const HORIZON_Y = 0.5; // fraction of canvas height where sky meets ground
+
+// ===== Small helpers for background / obstacle drawing =====
+
+/** Deterministic PRNG (mulberry32) so background detail is stable per zone. */
+function seededRandom(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashString(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+function clamp255(n: number): number { return Math.max(0, Math.min(255, Math.round(n))); }
+
+/** Mix a hex color toward white (amt>0) or black (amt<0). amt in -1..1. */
+function shade(hex: string, amt: number): string {
+  const m = hex.replace('#', '');
+  const full = m.length === 3 ? m.split('').map((c) => c + c).join('') : m;
+  const r = parseInt(full.slice(0, 2), 16) || 0;
+  const g = parseInt(full.slice(2, 4), 16) || 0;
+  const b = parseInt(full.slice(4, 6), 16) || 0;
+  const t = amt < 0 ? 0 : 255;
+  const a = Math.abs(amt);
+  return `rgb(${clamp255(r + (t - r) * a)}, ${clamp255(g + (t - g) * a)}, ${clamp255(b + (t - b) * a)})`;
+}
+
+interface GroundSpot { x: number; y: number; r: number; c: string; }
+interface BgDetail { spots: GroundSpot[]; }
+
+type ZoneVariant = 'park' | 'forest' | 'beach' | 'lake' | 'mountain' | 'waterfall' | 'cave' | 'secret' | 'default';
+function zoneVariant(zoneId: string): ZoneVariant {
+  if (/forest|park_secret|waterfall_exit/.test(zoneId)) return 'forest';
+  if (/beach/.test(zoneId)) return 'beach';
+  if (/lake/.test(zoneId)) return 'lake';
+  if (/mountain/.test(zoneId)) return 'mountain';
+  if (/waterfall|wf_/.test(zoneId)) return 'waterfall';
+  if (/cave|secret/.test(zoneId)) return 'cave';
+  if (/suburban|dog_park/.test(zoneId)) return 'park';
+  return 'default';
+}
 
 export class TpEngineRenderer extends BaseRenderer {
   private zone: Zone | null = null;
@@ -64,6 +113,10 @@ export class TpEngineRenderer extends BaseRenderer {
   private features: FeatureState[] = [];
   private scentTrail: ScentParticle[] = [];
   private lastScentEmit = 0;
+
+  // Background detail (7.1) — precomputed once per zone, stable + cheap.
+  private bgDetail: BgDetail | null = null;
+  private silhouette: Path2D | null = null;
 
   // Input
   private keysPressed: Set<string> = new Set();
@@ -111,6 +164,9 @@ export class TpEngineRenderer extends BaseRenderer {
     // Features
     this.features = (this.zone.features ?? []).map(f => ({ feature: f, state: 'active' as const }));
 
+    // Precompute background detail (7.1) once per zone.
+    this.buildBackground();
+
     window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('keyup', this.boundKeyUp);
   }
@@ -130,14 +186,7 @@ export class TpEngineRenderer extends BaseRenderer {
     const W = this.cssWidth;
     const H = this.cssHeight;
 
-    // Sky background
-    ctx.fillStyle = this.zone.skyColor ?? '#87CEEB';
-    ctx.fillRect(0, 0, W, H);
-
-    // Ground (large rect covering most of the canvas)
-    const groundMargin = 40;
-    ctx.fillStyle = this.zone.groundColor ?? '#4a7c3f';
-    ctx.fillRect(groundMargin, groundMargin, W - groundMargin * 2, H - groundMargin * 2);
+    this.renderBackground(ctx, W, H);
 
     // World-to-screen: center the player
     const toScreenX = (wx: number) => W / 2 + (wx - this.playerX) * WORLD_SCALE;
@@ -194,6 +243,120 @@ export class TpEngineRenderer extends BaseRenderer {
     }
   }
 
+  // ===== 7.1: Layered zone backgrounds =====
+
+  /** Precompute per-zone background detail (ground spots + silhouette Path2D). */
+  private buildBackground(): void {
+    const zone = this.zone!;
+    const variant = zoneVariant(zone.id);
+    const rng = seededRandom(hashString(zone.id));
+    const ground = zone.groundColor ?? '#4a7c3f';
+
+    // Ground detail spots — a bounded, deterministic scatter. Drawn in screen
+    // space per frame (cheap: < 40 arcs), positions fixed for the zone.
+    const spots: GroundSpot[] = [];
+    const count = variant === 'forest' || variant === 'beach' ? 34 : 22;
+    const light = shade(ground, 0.18);
+    const dark = shade(ground, -0.22);
+    for (let i = 0; i < count; i++) {
+      const x = rng();
+      const y = 0.52 + rng() * 0.46; // keep spots in the ground band
+      const r = 3 + rng() * 9;
+      const c = rng() > 0.5 ? light : dark;
+      spots.push({ x, y, r, c });
+    }
+    this.bgDetail = { spots };
+
+    // Horizon silhouette (parallax band) as a Path2D in a 0..1 x, 0..1 y space,
+    // scaled at render time so it survives resizes without recomputation.
+    this.silhouette = this.buildSilhouette(variant, rng);
+  }
+
+  private buildSilhouette(variant: ZoneVariant, rng: () => number): Path2D {
+    const p = new Path2D();
+    const horizon = HORIZON_Y;
+    const bandH = 0.10; // silhouette height as fraction of canvas
+    p.moveTo(0, horizon);
+    const steps = 12;
+    for (let i = 0; i <= steps; i++) {
+      const x = i / steps;
+      let h = 0;
+      switch (variant) {
+        case 'forest':
+        case 'mountain':
+          h = bandH * (0.4 + 0.6 * Math.abs(Math.sin(x * Math.PI * 3 + rng())));
+          break;
+        case 'waterfall':
+          h = bandH * (0.3 + 0.25 * rng());
+          break;
+        case 'lake':
+        case 'beach':
+          h = bandH * 0.22;
+          break;
+        default:
+          h = bandH * (0.35 + 0.4 * rng());
+      }
+      p.lineTo(x, horizon - h);
+    }
+    p.lineTo(1, horizon);
+    p.closePath();
+    return p;
+  }
+
+  /** Draw sky gradient + silhouette + ground + seeded detail (7.1). */
+  private renderBackground(ctx: CanvasRenderingContext2D, W: number, H: number): void {
+    const zone = this.zone!;
+    const sky = zone.skyColor ?? '#87CEEB';
+    const ground = zone.groundColor ?? '#4a7c3f';
+    const horizon = H * HORIZON_Y;
+
+    // Sky: vertical gradient (sky -> near-white at horizon) for depth.
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, horizon);
+    skyGrad.addColorStop(0, sky);
+    skyGrad.addColorStop(1, shade(sky, 0.45));
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, horizon + 1);
+
+    // Parallax silhouette band (0.15x camera) — gives a horizon without text.
+    if (this.silhouette) {
+      const off = ((this.playerX * WORLD_SCALE) * 0.15) % (W * 0.5);
+      ctx.save();
+      ctx.translate(-off, 0);
+      ctx.scale(W, H);
+      ctx.fillStyle = shade(ground, -0.45);
+      ctx.globalAlpha = 0.55;
+      ctx.fill(this.silhouette);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    // Ground: base fill with a subtle vertical gradient for depth.
+    const groundGrad = ctx.createLinearGradient(0, horizon, 0, H);
+    groundGrad.addColorStop(0, shade(ground, 0.06));
+    groundGrad.addColorStop(1, shade(ground, -0.12));
+    ctx.fillStyle = groundGrad;
+    ctx.fillRect(0, horizon, W, H - horizon);
+
+    // Seeded ground detail (mowed stripes / tufts / speckles / ripples).
+    if (this.bgDetail) {
+      ctx.globalAlpha = 0.5;
+      for (const s of this.bgDetail.spots) {
+        ctx.fillStyle = s.c;
+        ctx.beginPath();
+        ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Soft radial vignette for depth (replaces the removed fog, tastefully).
+    const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.8);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.10)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
   protected onDestroy(): void {
     window.removeEventListener('keydown', this.boundKeyDown);
     window.removeEventListener('keyup', this.boundKeyUp);
@@ -206,6 +369,8 @@ export class TpEngineRenderer extends BaseRenderer {
     this.pendingInteract = null;
     this.pendingNpc = null;
     this.interactQueued = false;
+    this.bgDetail = null;
+    this.silhouette = null;
   }
 
   // ===== Movement =====
@@ -420,41 +585,143 @@ export class TpEngineRenderer extends BaseRenderer {
     if (!this.ctx) return;
     const ctx = this.ctx;
 
+    // Shared soft ground shadow (7.6) — grounds the object.
+    const w = (ob.width ?? 2) * WORLD_SCALE;
+    ctx.fillStyle = 'rgba(0,0,0,0.14)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 6, Math.max(10, w * 0.4), 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
     switch (ob.type) {
       case 'tree': {
-        // Trunk
-        ctx.fillStyle = ob.trunkColor ?? '#5a3a1a';
-        ctx.fillRect(sx - 3, sy - 8, 6, 16);
-        // Canopy
-        ctx.fillStyle = ob.leafColor ?? '#2d5a1e';
+        const leaf = ob.leafColor ?? '#2d5a1e';
+        const trunk = ob.trunkColor ?? '#5a3a1a';
+        // Tapered trunk (polygon, not rect)
+        ctx.fillStyle = trunk;
         ctx.beginPath();
-        ctx.arc(sx, sy - 12, 14, 0, Math.PI * 2);
+        ctx.moveTo(sx - 4, sy + 4);
+        ctx.lineTo(sx + 4, sy + 4);
+        ctx.lineTo(sx + 2, sy - 12);
+        ctx.lineTo(sx - 2, sy - 12);
+        ctx.closePath();
         ctx.fill();
+        // 3 overlapping canopy circles of varying size
+        ctx.fillStyle = leaf;
+        ctx.beginPath(); ctx.arc(sx - 6, sy - 14, 12, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = shade(leaf, 0.12);
+        ctx.beginPath(); ctx.arc(sx + 6, sy - 16, 13, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = shade(leaf, 0.22);
+        ctx.beginPath(); ctx.arc(sx, sy - 22, 12, 0, Math.PI * 2); ctx.fill();
+        // Highlight arc on top
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(sx, sy - 22, 9, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
         break;
       }
       case 'bush': {
-        ctx.fillStyle = ob.color ?? '#2d6a1e';
-        ctx.beginPath();
-        ctx.arc(sx, sy, 10, 0, Math.PI * 2);
-        ctx.fill();
+        const c = ob.color ?? '#2d6a1e';
+        // 3 overlapping circles (cluster)
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.arc(sx - 7, sy, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = shade(c, 0.14);
+        ctx.beginPath(); ctx.arc(sx + 7, sy, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = shade(c, 0.26);
+        ctx.beginPath(); ctx.arc(sx, sy - 5, 10, 0, Math.PI * 2); ctx.fill();
         break;
       }
       case 'bench': {
-        ctx.fillStyle = ob.color ?? '#8B6914';
-        ctx.fillRect(sx - (ob.width ?? 2) * WORLD_SCALE * 0.5, sy - 4, (ob.width ?? 2) * WORLD_SCALE, 8);
+        const wood = ob.color ?? '#8B6914';
+        // Legs
+        ctx.fillStyle = shade(wood, -0.35);
+        ctx.fillRect(sx - w * 0.35, sy - 2, 4, 10);
+        ctx.fillRect(sx + w * 0.35 - 4, sy - 2, 4, 10);
+        // Seat
+        ctx.fillStyle = wood;
+        ctx.fillRect(sx - w / 2, sy - 6, w, 6);
+        // Backrest
+        ctx.fillStyle = shade(wood, -0.15);
+        ctx.fillRect(sx - w / 2, sy - 16, w, 4);
+        ctx.fillRect(sx - w / 2, sy - 16, 3, 12);
+        ctx.fillRect(sx + w / 2 - 3, sy - 16, 3, 12);
         break;
       }
       case 'fence': {
-        ctx.fillStyle = ob.color ?? '#8B4513';
-        const w = (ob.width ?? 6) * WORLD_SCALE;
-        ctx.fillRect(sx - w / 2, sy - 3, w, 6);
-        // Posts
-        ctx.fillStyle = '#6a3a1a';
+        const wood = ob.color ?? '#8B4513';
+        // Two horizontal rails
+        ctx.fillStyle = shade(wood, -0.15);
+        ctx.fillRect(sx - w / 2, sy - 4, w, 3);
+        ctx.fillRect(sx - w / 2, sy + 1, w, 3);
+        // Posts (rounded tops) with a slight per-post gradient
         for (let i = -w / 2; i <= w / 2; i += 20) {
-          ctx.fillRect(sx + i - 2, sy - 6, 4, 12);
+          const pg = ctx.createLinearGradient(sx + i, 0, sx + i + 4, 0);
+          pg.addColorStop(0, wood);
+          pg.addColorStop(1, shade(wood, -0.3));
+          ctx.fillStyle = pg;
+          ctx.fillRect(sx + i - 2, sy - 8, 4, 16);
+          ctx.beginPath(); ctx.arc(sx + i, sy - 8, 2, Math.PI, 0); ctx.fill();
         }
         break;
       }
+      case 'flower': {
+        // Stem
+        ctx.strokeStyle = '#2d6a1e';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(sx, sy + 2); ctx.lineTo(sx, sy - 12); ctx.stroke();
+        // Petals
+        const petal = ob.color ?? '#e91e63';
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 2.5) {
+          ctx.fillStyle = petal;
+          ctx.beginPath();
+          ctx.ellipse(sx + Math.cos(a) * 5, sy - 14 + Math.sin(a) * 5, 4, 2.5, a, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#ffd54f';
+        ctx.beginPath(); ctx.arc(sx, sy - 14, 3, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'rock': {
+        const c = ob.color ?? '#8a8a8a';
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.moveTo(sx - 9, sy + 3);
+        ctx.lineTo(sx - 5, sy - 6);
+        ctx.lineTo(sx + 3, sy - 8);
+        ctx.lineTo(sx + 9, sy - 1);
+        ctx.lineTo(sx + 6, sy + 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = shade(c, 0.2);
+        ctx.beginPath(); ctx.arc(sx - 2, sy - 4, 3, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'lamp_post': {
+        // Pole
+        ctx.fillStyle = '#3a3a3a';
+        ctx.fillRect(sx - 2, sy - 22, 4, 26);
+        ctx.fillRect(sx - 6, sy + 2, 12, 4);
+        // Glowing head
+        ctx.fillStyle = '#fff59d';
+        ctx.beginPath(); ctx.arc(sx, sy - 24, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,245,157,0.25)';
+        ctx.beginPath(); ctx.arc(sx, sy - 24, 9, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'crystal': {
+        const c = ob.color ?? '#7c4dff';
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 16);
+        ctx.lineTo(sx + 7, sy - 4);
+        ctx.lineTo(sx, sy + 2);
+        ctx.lineTo(sx - 7, sy - 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.beginPath(); ctx.moveTo(sx, sy - 16); ctx.lineTo(sx - 2, sy - 4); ctx.lineTo(sx, sy + 2); ctx.closePath(); ctx.fill();
+        break;
+      }
+      default:
+        break;
     }
   }
 
