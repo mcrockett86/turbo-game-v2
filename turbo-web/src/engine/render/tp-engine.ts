@@ -48,6 +48,9 @@ const NPC_WANDER_INTERVAL = 4.0; // seconds
 const INTERACT_RADIUS = 28; // px — proximity for feature/NPC interaction
 const WORLD_SCALE = 12; // world units -> px
 const HORIZON_Y = 0.5; // fraction of canvas height where sky meets ground
+const PLAYER_SCREEN_Y = 0.66; // fraction of canvas height the player anchors to,
+  // i.e. in the lower ground band so grounded objects read as "on the ground"
+  // rather than floating above the horizon. (Perspective fix for the M2 band.)
 
 // ===== Small helpers for background / obstacle drawing =====
 
@@ -188,9 +191,14 @@ export class TpEngineRenderer extends BaseRenderer {
 
     this.renderBackground(ctx, W, H);
 
-    // World-to-screen: center the player
-    const toScreenX = (wx: number) => W / 2 + (wx - this.playerX) * WORLD_SCALE;
-    const toScreenY = (wy: number) => H / 2 + (wy - this.playerY) * WORLD_SCALE;
+    // World-to-screen: anchor the player into the lower ground band so grounded
+    // objects (NPCs, gates, treats, items) sit on the ground plane, and spread
+    // world content radially (SPREAD) so items are less crowded = more gameplay
+    // space. Movement / collision / interact math are unaffected (world units).
+    const SPREAD = 1.4; // > 1 spreads items/NPCs apart; < 1 would crowd them
+    const playerScreenY = H * PLAYER_SCREEN_Y;
+    const toScreenX = (wx: number) => W / 2 + (wx - this.playerX) * WORLD_SCALE * SPREAD;
+    const toScreenY = (wy: number) => playerScreenY + (wy - this.playerY) * WORLD_SCALE * SPREAD;
 
     // Obstacles (sorted by y for simple depth)
     const sortedObstacles = [...this.obstacles].sort((a, b) => a.z - b.z);
@@ -224,10 +232,8 @@ export class TpEngineRenderer extends BaseRenderer {
       this.renderDog(sx, sy, npc.color, npc.accentColor, npc.facing, npc.name);
     }
 
-    // Player
-    const psx = W / 2;
-    const psy = H / 2;
-    this.renderDog(psx, psy, this.playerColor, this.playerAccent, this.playerFacing, 'You');
+    // Player (anchored in the lower ground band so it reads as on the ground)
+    this.renderDog(W / 2, playerScreenY, this.playerColor, this.playerAccent, this.playerFacing, 'You');
 
     // "Press E" prompt when standing at a confirmable threat/gate or an NPC
     const promptTarget = this.pendingInteract?.label ?? (this.pendingNpc ? this.pendingNpc.name : null);
@@ -236,10 +242,10 @@ export class TpEngineRenderer extends BaseRenderer {
       const label = `Press [E] / [Space] — ${promptTarget}`;
       ctx.font = 'bold 15px sans-serif';
       const tw = ctx.measureText(label).width;
-      ctx.fillRect(psx - tw / 2 - 14, psy - 52, tw + 28, 30);
+      ctx.fillRect(W / 2 - tw / 2 - 14, playerScreenY - 52, tw + 28, 30);
       ctx.fillStyle = '#ffd700';
       ctx.textAlign = 'center';
-      ctx.fillText(label, psx, psy - 32);
+      ctx.fillText(label, W / 2, playerScreenY - 32);
     }
   }
 
