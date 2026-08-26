@@ -245,6 +245,12 @@
 > - **Tests:** 84 unit (added 5 in `tests/unit/particles.test.ts`) + 66 E2E green (added `tests/m3-particles.spec.ts`: ambient particles spawn + pool stays bounded). tsc clean, build 42.30 kB gzip (< 45 kB budget).
 
 | **M3** | 7.2 (dog model), 7.7 (particles) | 1.5 days | Measure |
+> **M4 — DONE (2026-08-26).** FP feature sprites (7.3) + room dressing (7.4) landed in `fp-room-renderer.ts`:
+> - **7.3 `renderFeatureSprite`:** per-type FP drawings replacing the flat `fillRect`s — food plate + kibble, open book/scroll + ribbon, TV (glow screen + stand), fountain/water basin + droplets, water bowl, fire hydrant (body + dome + nozzles), scent post + flag, treasure chest + pulsing shimmer, person bust, dog_friend silhouette + heart, door/locked_door (+chain), secret_passage glowing crack, gate arch, cave_entrance archway, home/celebration house, mailbox, pet_shop storefront, lure, dog_show podium + star, here-pin, and threat glyphs (🚦🐱😾) on soft chips. Every object gets a soft shadow + a rounded label pill.
+> - **7.4 room dressing:** two-tone checkerboard floor (~10 tiles), thick 3-D walls (dark face + lighter top strip) on all four sides, light baseboards at the floor/wall junction, and a radial vignette (replaces the removed `renderFog`). Added a `shadeColor` helper; `darkenColor` now delegates to it. All tones derived from `room.color` (no new data fields).
+> - **Perf:** p50 16.7→16.7ms, p95 16.8→16.7ms, max 50ms, 0 dropped — inside the gate, **no re-baseline needed** (`perf/baseline-m4pre.json` vs `perf/baseline-m4.json`).
+> - **Tests:** 84 unit + 67 E2E green (added `tests/m4-fp-render.spec.ts`: every FP room renders content without page errors). tsc clean, build 42.30 kB gzip (< 45 kB budget).
+
 | **M4** | 7.3 (FP sprites), 7.4 (room dressing) | 2 days | Measure |
 | **M5** | 7.9 (threat minigame), final polish | 1 day | Final re-baseline |
 

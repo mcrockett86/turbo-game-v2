@@ -1,0 +1,17 @@
+{
+  "label": "m4",
+  "recordedAt": "2026-08-26T08:22:29.959Z",
+  "gitCommit": "cafc3cf40b18c137252053909abb769437a31162",
+  "scenario": "navigate-all",
+  "frames": {
+    "samples": 600,
+    "totalFrames": 1421,
+    "avgMs": 16.749333333333333,
+    "p50Ms": 16.700000000000728,
+    "p95Ms": 16.700000000000728,
+    "maxMs": 50,
+    "droppedFrames": 0
+  },
+  "zoneSwaps": 18,
+  "notes": ""
+}

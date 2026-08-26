@@ -299,41 +299,97 @@ export class FpRoomRenderer extends BaseRenderer {
   
   protected onRender(): void {
     if (!this.ctx || !this.room || !this.canvas) return;
-    
+
     this.renderRoom();
     this.renderFeatures();
     this.renderExits();
     this.renderPlayer();
-    this.renderFog();
+    this.renderVignette();
   }
-  
+
   private renderRoom(): void {
     if (!this.ctx || !this.room || !this.canvas) return;
     const ctx = this.ctx;
     const room = this.room;
-    const canvas = this.canvas;
 
-    // Scale room to fill ~80% of canvas (maintain aspect ratio)
     const scale = this.roomScale();
     const offsetX = (this.cssWidth - room.w * scale) / 2;
     const offsetY = (this.cssHeight - room.d * scale) / 2;
+    const rw = room.w * scale;
+    const rh = room.d * scale;
+    const wall = 10; // wall thickness (px)
+    const x = offsetX, y = offsetY;
 
-    // Draw floor
-    ctx.fillStyle = room.color;
-    ctx.fillRect(offsetX, offsetY, room.w * scale, room.d * scale);
+    // Floor: two-tone checkerboard (room color + 8% lighter), ~8 tiles across.
+    const tile = Math.max(10, Math.min(rw, rh) / 10);
+    const base = room.color;
+    const light = this.shadeColor(base, 0.08);
+    const cols = Math.ceil(rw / tile);
+    const rows = Math.ceil(rh / tile);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        ctx.fillStyle = (r + c) % 2 === 0 ? base : light;
+        const tx = x + c * tile;
+        const ty = y + r * tile;
+        const tw = Math.min(tile, x + rw - tx);
+        const th = Math.min(tile, y + rh - ty);
+        if (tw > 0 && th > 0) ctx.fillRect(tx, ty, tw, th);
+      }
+    }
 
-    // Draw walls (thicker border around room)
-    const wallThickness = 8;
-    ctx.strokeStyle = '#2a2a3e';
-    ctx.lineWidth = wallThickness;
-    ctx.strokeRect(offsetX - wallThickness / 2, offsetY - wallThickness / 2,
-                    room.w * scale + wallThickness, room.d * scale + wallThickness);
+    // Walls: thick filled rects with a 3-D top face (pseudo-extrusion).
+    const face = this.shadeColor(base, -0.45);   // wall face (dark)
+    const top = this.shadeColor(base, -0.25);    // wall top (lighter)
+    const topH = 5;                              // top-face strip height (px)
+    // North wall
+    ctx.fillStyle = face; ctx.fillRect(x - wall, y - wall, rw + wall * 2, wall);
+    ctx.fillStyle = top;  ctx.fillRect(x - wall, y - wall, rw + wall * 2, topH);
+    // South wall
+    ctx.fillStyle = face; ctx.fillRect(x - wall, y + rh, rw + wall * 2, wall);
+    ctx.fillStyle = top;  ctx.fillRect(x - wall, y + rh, rw + wall * 2, topH);
+    // West wall
+    ctx.fillStyle = face; ctx.fillRect(x - wall, y, wall, rh);
+    // East wall
+    ctx.fillStyle = face; ctx.fillRect(x + rw, y, wall, rh);
 
-    // Draw room name at top
+    // Baseboards: light strips at the floor/wall junction (inside edges).
+    ctx.fillStyle = this.shadeColor(base, 0.22);
+    ctx.fillRect(x, y, rw, 2);                  // north
+    ctx.fillRect(x, y + rh - 2, rw, 2);         // south
+    ctx.fillRect(x, y, 2, rh);                  // west
+    ctx.fillRect(x + rw - 2, y, 2, rh);         // east
+
+    // Room name at top
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(room.name, this.cssWidth / 2, offsetY - 15);
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(room.name, this.cssWidth / 2, y - wall - 8);
+  }
+
+  /** Radial vignette for depth (replaces the removed full-screen fog). */
+  private renderVignette(): void {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const W = this.cssWidth, H = this.cssHeight;
+    const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.75);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.14)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /** Mix a hex color toward white (amt>0) or black (amt<0). amt in -1..1. */
+  private shadeColor(hex: string, amt: number): string {
+    const m = (hex || '#888888').replace('#', '');
+    const full = m.length === 3 ? m.split('').map((c) => c + c).join('') : m.padEnd(6, '0');
+    const r = parseInt(full.slice(0, 2), 16) || 0;
+    const g = parseInt(full.slice(2, 4), 16) || 0;
+    const b = parseInt(full.slice(4, 6), 16) || 0;
+    const t = amt < 0 ? 0 : 255;
+    const a = Math.abs(amt);
+    const f = (v: number) => Math.max(0, Math.min(255, Math.round(v + (t - v) * a)));
+    return `rgb(${f(r)}, ${f(g)}, ${f(b)})`;
   }
 
   /** Compute the uniform scale factor that fits the room into ~80% of the canvas. */
@@ -377,28 +433,280 @@ export class FpRoomRenderer extends BaseRenderer {
   private renderFeatures(): void {
     if (!this.ctx || !this.room) return;
     const ctx = this.ctx;
+    const scale = this.roomScale();
 
     this.features.forEach((data, featureId) => {
       const { feature } = data;
-
-      // Calculate screen position using world->canvas transform
       const x = this.toCanvasX(feature.x);
       const y = this.toCanvasY(feature.y);
-      const scale = this.roomScale();
+      const base = Math.max(feature.w || 30, feature.h || 30) * scale; // footprint (px)
 
-      // Draw feature shape (simplified as rectangle for now)
-      const width = (feature.w || 30) * scale;
-      const height = (feature.h || 30) * scale;
+      // Soft shadow grounds the object
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath();
+      ctx.ellipse(x, y + base * 0.35, base * 0.5, base * 0.22, 0, 0, Math.PI * 2);
+      ctx.fill();
 
-      ctx.fillStyle = this.getFeatureColor(feature.type);
-      ctx.fillRect(x - width / 2, y - height / 2, width, height);
+      this.renderFeatureSprite(ctx, feature, x, y, base, scale);
 
-      // Draw label above feature
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(feature.label, x, y - height / 2 - 5);
+      // Label pill above the object
+      if (feature.label) {
+        ctx.font = '11px sans-serif';
+        const lw = ctx.measureText(feature.label).width;
+        const pw = lw + 10, ph = 15, px = x - pw / 2, py = y - base * 0.5 - ph - 4;
+        ctx.fillStyle = 'rgba(10,10,25,0.8)';
+        ctx.beginPath();
+        (ctx as any).roundRect ? (ctx as any).roundRect(px, py, pw, ph, 5) : ctx.rect(px, py, pw, ph);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(feature.label, x, py + ph / 2);
+        ctx.textBaseline = 'alphabetic';
+      }
     });
+  }
+
+  /**
+   * 7.3 per-type feature sprite. `x,y` is the screen center, `base` is the
+   * footprint in px, `scale` is the room scale. Drawn to read as a distinct
+   * object rather than a flat colored rect.
+   */
+  private renderFeatureSprite(ctx: CanvasRenderingContext2D, f: RoomFeature, x: number, y: number, base: number, scale: number): void {
+    const c = this.getFeatureColor(f.type);
+    const u = base / 30; // normalize a 30px reference footprint
+    const now = performance.now();
+
+    switch (f.type) {
+      case 'food': {
+        // Plate (white ellipse) + kibble dots
+        ctx.fillStyle = '#f5f5f5';
+        ctx.beginPath(); ctx.ellipse(x, y + 2 * u, 14 * u, 9 * u, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = this.shadeColor(c, -0.1);
+        for (const [dx, dy, r] of [[-4, -1, 3], [3, -3, 2.5], [1, 3, 2.5], [-2, 4, 2]] as const) {
+          ctx.beginPath(); ctx.arc(x + dx * u, y + dy * u, r * u, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case 'hint': {
+        // Open book (two trapezoids) with a ribbon
+        ctx.fillStyle = '#fff8e1';
+        ctx.beginPath();
+        ctx.moveTo(x, y); ctx.lineTo(x - 12 * u, y - 8 * u); ctx.lineTo(x - 12 * u, y + 8 * u); ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x, y); ctx.lineTo(x + 12 * u, y - 8 * u); ctx.lineTo(x + 12 * u, y + 8 * u); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = this.shadeColor(c, -0.2); ctx.lineWidth = 1.5 * u;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 8 * u); ctx.stroke();
+        ctx.strokeStyle = '#c62828'; ctx.lineWidth = 2 * u;
+        ctx.beginPath(); ctx.moveTo(x, y - 2 * u); ctx.lineTo(x, y + 12 * u); ctx.stroke();
+        break;
+      }
+      case 'tv': {
+        // Rounded screen + glow + speakers + stand
+        ctx.fillStyle = '#263238';
+        const w = 22 * u, h = 15 * u;
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - w / 2, y - h / 2, w, h, 2 * u) : ctx.rect(x - w / 2, y - h / 2, w, h); ctx.fill();
+        const glow = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+        glow.addColorStop(0, this.shadeColor(c, 0.4)); glow.addColorStop(1, this.shadeColor(c, -0.1));
+        ctx.fillStyle = glow;
+        ctx.fillRect(x - w / 2 + 2 * u, y - h / 2 + 2 * u, w - 4 * u, h - 4 * u);
+        ctx.fillStyle = '#90a4ae';
+        ctx.fillRect(x - 3 * u, y + h / 2, 6 * u, 3 * u); // stand
+        break;
+      }
+      case 'fountain':
+      case 'water': {
+        // Circular basin (concentric) + water + droplet arcs
+        ctx.fillStyle = '#b0bec5'; ctx.beginPath(); ctx.arc(x, y, 15 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = this.shadeColor(c, 0.25); ctx.beginPath(); ctx.arc(x, y, 12 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5 * u;
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 2) {
+          ctx.beginPath(); ctx.arc(x + Math.cos(a) * 7 * u, y + Math.sin(a) * 7 * u, 2 * u, a, a + Math.PI); ctx.stroke();
+        }
+        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, 3 * u, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'water_bowl': {
+        // Half-circle bowl + water ellipse inside
+        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, 13 * u, 0, Math.PI); ctx.fill();
+        ctx.fillStyle = this.shadeColor(c, 0.3); ctx.beginPath(); ctx.ellipse(x, y, 11 * u, 4 * u, 0, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'fire_hydrant': {
+        // Rounded body + dome cap + 2 side nozzles
+        ctx.fillStyle = c;
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 6 * u, y - 8 * u, 12 * u, 16 * u, 4 * u) : ctx.rect(x - 6 * u, y - 8 * u, 12 * u, 16 * u); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y - 8 * u, 6 * u, Math.PI, 0); ctx.fill();
+        ctx.beginPath(); ctx.arc(x - 9 * u, y, 3 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 9 * u, y, 3 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = this.shadeColor(c, -0.2); ctx.beginPath(); ctx.arc(x, y - 12 * u, 2.5 * u, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'scent_post': {
+        // Wooden post + flag
+        ctx.fillStyle = '#8d6e63'; ctx.fillRect(x - 2 * u, y - 14 * u, 4 * u, 20 * u);
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.moveTo(x + 2 * u, y - 14 * u); ctx.lineTo(x + 12 * u, y - 10 * u); ctx.lineTo(x + 2 * u, y - 6 * u); ctx.closePath(); ctx.fill();
+        break;
+      }
+      case 'treasure': {
+        // Chest (rounded rect + lid) + pulsing gold shimmer
+        ctx.fillStyle = this.shadeColor(c, -0.3);
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 12 * u, y - 6 * u, 24 * u, 14 * u, 3 * u) : ctx.rect(x - 12 * u, y - 6 * u, 24 * u, 14 * u); ctx.fill();
+        ctx.fillStyle = c;
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 12 * u, y - 12 * u, 24 * u, 8 * u, 3 * u) : ctx.rect(x - 12 * u, y - 12 * u, 24 * u, 8 * u); ctx.fill();
+        ctx.fillStyle = this.shadeColor(c, -0.4); ctx.fillRect(x - 2 * u, y - 4 * u, 4 * u, 6 * u); // lock
+        const shim = 0.5 + 0.5 * Math.sin(now / 250);
+        ctx.globalAlpha = 0.3 + 0.4 * shim;
+        ctx.fillStyle = '#fff59d';
+        ctx.beginPath(); ctx.arc(x, y - 14 * u, 2.5 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'person': {
+        // Head circle + shoulders trapezoid (bust)
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.moveTo(x - 12 * u, y + 10 * u); ctx.lineTo(x - 6 * u, y); ctx.lineTo(x + 6 * u, y); ctx.lineTo(x + 12 * u, y + 10 * u); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = this.shadeColor(c, 0.15); ctx.beginPath(); ctx.arc(x, y - 6 * u, 7 * u, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'dog_friend': {
+        // Small dog silhouette + a heart
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.ellipse(x, y, 11 * u, 7 * u, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 8 * u, y - 5 * u, 5 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = this.shadeColor(c, -0.15);
+        ctx.beginPath(); ctx.arc(x + 5 * u, y - 8 * u, 2 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 11 * u, y - 8 * u, 2 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff5252';
+        ctx.beginPath();
+        const hx = x, hy = y - 16 * u, hr = 3 * u;
+        ctx.moveTo(hx, hy + hr); ctx.bezierCurveTo(hx - hr * 2, hy - hr, hx - hr, hy - hr * 2, hx, hy - hr * 0.5);
+        ctx.bezierCurveTo(hx + hr, hy - hr * 2, hx + hr * 2, hy - hr, hx, hy + hr); ctx.fill();
+        break;
+      }
+      case 'door':
+      case 'locked_door': {
+        // Rect door + doorknob; locked adds a chain
+        ctx.fillStyle = this.shadeColor(c, -0.15);
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 9 * u, y - 14 * u, 18 * u, 26 * u, 2 * u) : ctx.rect(x - 9 * u, y - 14 * u, 18 * u, 26 * u); ctx.fill();
+        ctx.fillStyle = '#ffe082'; ctx.beginPath(); ctx.arc(x + 5 * u, y + 1 * u, 1.8 * u, 0, Math.PI * 2); ctx.fill();
+        if (f.type === 'locked_door') {
+          ctx.strokeStyle = '#78909c'; ctx.lineWidth = 2 * u; ctx.setLineDash([3 * u, 2 * u]);
+          ctx.beginPath(); ctx.moveTo(x - 9 * u, y); ctx.lineTo(x + 9 * u, y); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        break;
+      }
+      case 'secret_passage': {
+        // Dark rect with a glowing crack
+        ctx.fillStyle = '#1a1a2e';
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 12 * u, y - 14 * u, 24 * u, 26 * u, 3 * u) : ctx.rect(x - 12 * u, y - 14 * u, 24 * u, 26 * u); ctx.fill();
+        ctx.strokeStyle = '#7c4dff'; ctx.lineWidth = 2 * u; ctx.shadowColor = '#7c4dff'; ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(x - 2 * u, y - 12 * u); ctx.lineTo(x + 2 * u, y - 5 * u); ctx.lineTo(x - 1 * u, y + 1 * u); ctx.lineTo(x + 3 * u, y + 8 * u);
+        ctx.stroke(); ctx.shadowBlur = 0;
+        break;
+      }
+      case 'gate':
+      case 'return_gate': {
+        // Two posts + arch
+        ctx.fillStyle = '#6a4a2a';
+        ctx.fillRect(x - 12 * u, y - 10 * u, 4 * u, 20 * u);
+        ctx.fillRect(x + 8 * u, y - 10 * u, 4 * u, 20 * u);
+        ctx.strokeStyle = this.shadeColor(c, 0.2); ctx.lineWidth = 4 * u;
+        ctx.beginPath(); ctx.arc(x, y - 8 * u, 10 * u, Math.PI, 0); ctx.stroke();
+        break;
+      }
+      case 'cave_entrance': {
+        // Dark archway
+        ctx.fillStyle = '#0d0d1a';
+        ctx.beginPath(); ctx.arc(x, y, 14 * u, Math.PI, 0); ctx.lineTo(x + 14 * u, y + 10 * u); ctx.lineTo(x - 14 * u, y + 10 * u); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#4a4a4a'; ctx.lineWidth = 3 * u;
+        ctx.beginPath(); ctx.arc(x, y, 14 * u, Math.PI, 0); ctx.stroke();
+        break;
+      }
+      case 'celebration':
+      case 'home': {
+        // Warm house / celebration arch
+        ctx.fillStyle = this.shadeColor(c, -0.1);
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 12 * u, y - 4 * u, 24 * u, 16 * u, 2 * u) : ctx.rect(x - 12 * u, y - 4 * u, 24 * u, 16 * u); ctx.fill();
+        ctx.fillStyle = this.shadeColor(c, -0.3);
+        ctx.beginPath(); ctx.moveTo(x - 14 * u, y - 4 * u); ctx.lineTo(x, y - 16 * u); ctx.lineTo(x + 14 * u, y - 4 * u); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffe082'; ctx.fillRect(x - 3 * u, y + 2 * u, 6 * u, 8 * u); // door
+        break;
+      }
+      case 'mailbox':
+      case 'trap': {
+        // Mailbox post + box
+        ctx.fillStyle = '#6d4c41'; ctx.fillRect(x - 2 * u, y - 6 * u, 4 * u, 14 * u);
+        ctx.fillStyle = this.shadeColor(c, -0.1);
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 10 * u, y - 14 * u, 20 * u, 9 * u, 4 * u) : ctx.rect(x - 10 * u, y - 14 * u, 20 * u, 9 * u); ctx.fill();
+        break;
+      }
+      case 'pet_shop': {
+        // Shopfront: awning + window
+        ctx.fillStyle = this.shadeColor(c, -0.2);
+        ctx.fillRect(x - 12 * u, y - 8 * u, 24 * u, 18 * u);
+        for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#ffffff' : c; ctx.fillRect(x - 12 * u + i * 6 * u, y - 12 * u, 6 * u, 5 * u); }
+        ctx.fillStyle = this.shadeColor(c, 0.3); ctx.fillRect(x - 7 * u, y - 2 * u, 14 * u, 8 * u);
+        break;
+      }
+      case 'lure': {
+        // Fishing lure: hook + shiny ball
+        ctx.fillStyle = this.shadeColor(c, 0.3); ctx.beginPath(); ctx.arc(x, y - 2 * u, 6 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = 2 * u;
+        ctx.beginPath(); ctx.arc(x, y + 6 * u, 4 * u, 0, Math.PI * 1.4); ctx.stroke();
+        break;
+      }
+      case 'dog_show': {
+        // Podium + star
+        ctx.fillStyle = this.shadeColor(c, -0.15);
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 12 * u, y, 24 * u, 10 * u, 2 * u) : ctx.rect(x - 12 * u, y, 24 * u, 10 * u); ctx.fill();
+        ctx.fillStyle = '#ffd700';
+        this.star(ctx, x, y - 8 * u, 6 * u);
+        break;
+      }
+      case 'here': {
+        // "You are here" pin
+        ctx.fillStyle = '#ff9f43';
+        ctx.beginPath(); ctx.arc(x, y - 4 * u, 8 * u, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x - 5 * u, y); ctx.lineTo(x + 5 * u, y); ctx.lineTo(x, y + 12 * u); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y - 4 * u, 3 * u, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'traffic':
+      case 'cat':
+      case 'bully': {
+        // Threat glyph on a soft chip (cheap + readable)
+        const glyph = f.type === 'traffic' ? '🚦' : f.type === 'cat' ? '🐱' : '😾';
+        ctx.fillStyle = 'rgba(10,10,25,0.85)';
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 13 * u, y - 13 * u, 26 * u, 26 * u, 5 * u) : ctx.rect(x - 13 * u, y - 13 * u, 26 * u, 26 * u); ctx.fill();
+        ctx.font = `${16 * u}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(glyph, x, y + 1 * u); ctx.textBaseline = 'alphabetic';
+        break;
+      }
+      default: {
+        // Fallback: a clean rounded chip in the feature color
+        ctx.fillStyle = c;
+        ctx.beginPath(); (ctx as any).roundRect ? (ctx as any).roundRect(x - 10 * u, y - 10 * u, 20 * u, 20 * u, 4 * u) : ctx.rect(x - 10 * u, y - 10 * u, 20 * u, 20 * u); ctx.fill();
+        ctx.fillStyle = this.shadeColor(c, 0.3);
+        ctx.beginPath(); ctx.arc(x, y, 4 * u, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
+  private star(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const ang = (Math.PI / 5) * i - Math.PI / 2;
+      const rad = i % 2 === 0 ? r : r * 0.45;
+      const px = cx + Math.cos(ang) * rad;
+      const py = cy + Math.sin(ang) * rad;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
   }
 
   private renderExits(): void {
@@ -486,10 +794,6 @@ export class FpRoomRenderer extends BaseRenderer {
     ctx.fillText('You', playerScreenX, playerScreenY + 25 * scale);
   }
   
-  private renderFog(): void {
-    // No full-screen fog overlay — was covering all rendered content
-  }
-  
   private getFeatureColor(featureType: string): string {
     // Map feature types to colors for visual distinction
     const colorMap: Record<string, string> = {
@@ -512,16 +816,7 @@ export class FpRoomRenderer extends BaseRenderer {
   }
   
   private darkenColor(hex: string, factor: number): string {
-    // Simple hex color darkening
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    
-    const newR = Math.floor(r * (1 - factor));
-    const newG = Math.floor(g * (1 - factor));
-    const newB = Math.floor(b * (1 - factor));
-    
-    return `rgb(${newR}, ${newG}, ${newB})`;
+    return this.shadeColor(hex, -factor);
   }
   
   // Keyboard handlers
