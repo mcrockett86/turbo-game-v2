@@ -47,6 +47,10 @@ const SCENT_PARTICLE_LIFE = 3.0; // seconds
 const NPC_WANDER_INTERVAL = 4.0; // seconds
 const INTERACT_RADIUS = 28; // px — proximity for feature/NPC interaction
 const WORLD_SCALE = 12; // world units -> px
+// World magnification on screen (render spread). Also scales the INTERACT_RADIUS
+// trigger in world terms so the world-space trigger distance is constant no
+// matter the visual spread (otherwise a bigger SPREAD = trigger fires farther).
+const SPREAD = 3.0;
 const HORIZON_Y = 0.5; // fraction of canvas height where sky meets ground
 const PLAYER_SCREEN_Y = 0.8; // fraction of canvas height the player anchors to,
   // i.e. in the lower ground band so grounded objects read as "on the ground"
@@ -195,7 +199,6 @@ export class TpEngineRenderer extends BaseRenderer {
     // objects (NPCs, gates, treats, items) sit on the ground plane, and spread
     // world content radially (SPREAD) so items are less crowded = more gameplay
     // space. Movement / collision / interact math are unaffected (world units).
-    const SPREAD = 3.0; // > 1 spreads items/NPCs apart; < 1 would crowd them
     const playerScreenY = H * PLAYER_SCREEN_Y;
     const toScreenX = (wx: number) => W / 2 + (wx - this.playerX) * WORLD_SCALE * SPREAD;
     const toScreenY = (wy: number) => playerScreenY + (wy - this.playerY) * WORLD_SCALE * SPREAD;
@@ -549,7 +552,7 @@ export class TpEngineRenderer extends BaseRenderer {
       if (this.isConfirmable(fs.feature)) continue; // handled by confirm path
       const dx = fs.feature.x - this.playerX;
       const dy = fs.feature.z - this.playerY;
-      if (dx * dx + dy * dy < INTERACT_RADIUS * INTERACT_RADIUS / (WORLD_SCALE * WORLD_SCALE)) {
+      if (dx * dx + dy * dy < INTERACT_RADIUS * INTERACT_RADIUS / (WORLD_SCALE * WORLD_SCALE * SPREAD * SPREAD)) {
         if (fs.feature.type === 'scent_post' || fs.feature.type === 'fire_hydrant' || fs.feature.type === 'bridge' || fs.feature.type === 'fountain' || fs.feature.type === 'water') {
           fs.state = 'completed';
           continue;
