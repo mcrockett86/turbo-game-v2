@@ -48,7 +48,7 @@ const NPC_WANDER_INTERVAL = 4.0; // seconds
 const INTERACT_RADIUS = 28; // px — proximity for feature/NPC interaction
 const WORLD_SCALE = 12; // world units -> px
 const HORIZON_Y = 0.5; // fraction of canvas height where sky meets ground
-const PLAYER_SCREEN_Y = 0.66; // fraction of canvas height the player anchors to,
+const PLAYER_SCREEN_Y = 0.8; // fraction of canvas height the player anchors to,
   // i.e. in the lower ground band so grounded objects read as "on the ground"
   // rather than floating above the horizon. (Perspective fix for the M2 band.)
 
@@ -195,7 +195,7 @@ export class TpEngineRenderer extends BaseRenderer {
     // objects (NPCs, gates, treats, items) sit on the ground plane, and spread
     // world content radially (SPREAD) so items are less crowded = more gameplay
     // space. Movement / collision / interact math are unaffected (world units).
-    const SPREAD = 1.4; // > 1 spreads items/NPCs apart; < 1 would crowd them
+    const SPREAD = 3.0; // > 1 spreads items/NPCs apart; < 1 would crowd them
     const playerScreenY = H * PLAYER_SCREEN_Y;
     const toScreenX = (wx: number) => W / 2 + (wx - this.playerX) * WORLD_SCALE * SPREAD;
     const toScreenY = (wy: number) => playerScreenY + (wy - this.playerY) * WORLD_SCALE * SPREAD;
