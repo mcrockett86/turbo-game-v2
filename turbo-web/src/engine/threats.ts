@@ -52,6 +52,10 @@ interface ComfortState {
 
 export class ThreatManager extends BaseRenderer {
   phase: ThreatPhase = 'idle';
+  // 7.9 visual pass: transient hit/shake/flash state
+  private shakeTimer = 0;
+  private flashTimer = 0;
+  private flashSuccess = false;
   currentThreat: Threat | null = null;
   currentType: ThreatType | null = null;
 
@@ -146,6 +150,10 @@ export class ThreatManager extends BaseRenderer {
   protected onUpdate(delta: number, _time: number): void {
     if (this.phase === 'idle') return;
 
+    // 7.9 decay transient hit/shake/flash timers regardless of phase
+    if (this.shakeTimer > 0) this.shakeTimer = Math.max(0, this.shakeTimer - delta);
+    if (this.flashTimer > 0) this.flashTimer = Math.max(0, this.flashTimer - delta);
+
     if (this.phase === 'intro') {
       this.introTimer -= delta;
       if (this.introTimer <= 0) {
@@ -170,6 +178,22 @@ export class ThreatManager extends BaseRenderer {
     const ctx = this.ctx;
     const W = this.cssWidth;
     const H = this.cssHeight;
+
+    // 7.9 screen-shake on hit (2px, 100ms)
+    if (this.shakeTimer > 0) {
+      const m = this.shakeTimer / 0.12 * 2;
+      ctx.save();
+      ctx.translate((Math.random() - 0.5) * m * 2, (Math.random() - 0.5) * m * 2);
+      this.renderThreatContent(ctx, W, H);
+      ctx.restore();
+    } else {
+      this.renderThreatContent(ctx, W, H);
+    }
+    this.drawFlash(ctx, W, H);
+  }
+
+  private renderThreatContent(ctx: CanvasRenderingContext2D, W: number, H: number): void {
+    if (!this.currentThreat) return;
 
     // Dark backdrop
     ctx.fillStyle = 'rgba(10, 10, 25, 0.88)';
@@ -207,6 +231,48 @@ export class ThreatManager extends BaseRenderer {
       case 'sneak': this.renderSneak(ctx, W, H); break;
       case 'comfort': this.renderComfort(ctx, W, H); break;
     }
+
+    // 7.9 SUCCESS / FAIL pill banner (consistent pill style used everywhere else)
+    if (this.phase === 'resolved') {
+      const s = this.flashSuccess;
+      const label = s ? '✓ SUCCESS' : '✗ FAIL';
+      ctx.font = 'bold 24px sans-serif';
+      const w = ctx.measureText(label).width + 44;
+      const h = 48;
+      const px = W / 2 - w / 2;
+      const py = H / 2 + 70;
+      ctx.globalAlpha = 0.96;
+      ctx.fillStyle = s ? 'rgba(34,80,34,0.92)' : 'rgba(90,26,26,0.92)';
+      ctx.beginPath();
+      (ctx as any).roundRect ? (ctx as any).roundRect(px, py, w, h, 12) : ctx.rect(px, py, w, h);
+      ctx.fill();
+      ctx.strokeStyle = s ? '#7CFC00' : '#ff8a80';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      (ctx as any).roundRect ? (ctx as any).roundRect(px, py, w, h, 12) : ctx.rect(px, py, w, h);
+      ctx.stroke();
+      ctx.fillStyle = s ? '#d4ff8a' : '#ffcdd2';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, W / 2, py + h / 2);
+      ctx.textBaseline = 'alphabetic';
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /** 7.9 trigger a hit: brief screen-shake + flash (success/fail colored). */
+  private triggerHit(success: boolean): void {
+    this.shakeTimer = 0.12;
+    this.flashTimer = 0.2;
+    this.flashSuccess = success;
+  }
+
+  /** Draw the transient flash (called last so it sits over the banner). */
+  private drawFlash(ctx: CanvasRenderingContext2D, W: number, H: number): void {
+    if (this.flashTimer <= 0) return;
+    const a = Math.max(0, this.flashTimer / 0.2) * 0.18;
+    ctx.fillStyle = this.flashSuccess ? `rgba(124,252,0,${a})` : `rgba(255,82,82,${a})`;
+    ctx.fillRect(0, 0, W, H);
   }
 
   protected onDestroy(): void {
@@ -416,6 +482,7 @@ export class ThreatManager extends BaseRenderer {
 
     this.phase = 'resolved';
     this.onStateChange?.(this.phase, this.currentThreat);
+    this.triggerHit(success); // 7.9 screen-shake + colored flash on the outcome
 
     // Brief pause before callback so the player sees the outcome
     setTimeout(() => {
