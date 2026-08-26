@@ -52,6 +52,11 @@ const WORLD_SCALE = 12; // world units -> px
 // matter the visual spread (otherwise a bigger SPREAD = trigger fires farther).
 const SPREAD = 3.0;
 const HORIZON_Y = 0.5; // fraction of canvas height where sky meets ground
+// Objects whose base (sy) sits above the horizon are "behind" the camera in
+// this top-down view — don't draw them so they don't appear to float in the sky.
+// A small margin lets tall objects (trees) whose base is just below the horizon
+// still show, while objects clearly above the horizon are hidden.
+const HORIZON_MARGIN = 18;
 const PLAYER_SCREEN_Y = 0.8; // fraction of canvas height the player anchors to,
   // i.e. in the lower ground band so grounded objects read as "on the ground"
   // rather than floating above the horizon. (Perspective fix for the M2 band.)
@@ -205,20 +210,28 @@ export class TpEngineRenderer extends BaseRenderer {
     const playerScreenY = H * PLAYER_SCREEN_Y;
     const toScreenX = (wx: number) => W / 2 + (wx - this.playerX) * WORLD_SCALE * SPREAD;
     const toScreenY = (wy: number) => playerScreenY + (wy - this.playerY) * WORLD_SCALE * SPREAD;
+    const horizon = H * HORIZON_Y;
+    // Skip objects whose base is above the horizon (behind the camera) — they
+    // would otherwise appear to float in the sky.
+    const aboveHorizon = (sy: number) => sy < horizon - HORIZON_MARGIN;
 
     // Obstacles (sorted by y for simple depth)
     const sortedObstacles = [...this.obstacles].sort((a, b) => a.z - b.z);
     for (const ob of sortedObstacles) {
-      this.renderObstacle(ob, toScreenX(ob.x), toScreenY(ob.z));
+      const sy = toScreenY(ob.z);
+      if (aboveHorizon(sy)) continue;
+      this.renderObstacle(ob, toScreenX(ob.x), sy);
     }
 
     // Scent trail
     for (const p of this.scentTrail) {
+      const sy = toScreenY(p.y);
+      if (aboveHorizon(sy)) continue;
       const t = 1 - p.age / p.life;
       ctx.globalAlpha = t * 0.6;
       ctx.fillStyle = '#ff9f43';
       ctx.beginPath();
-      ctx.arc(toScreenX(p.x), toScreenY(p.y), p.size * t, 0, Math.PI * 2);
+      ctx.arc(toScreenX(p.x), sy, p.size * t, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -226,16 +239,16 @@ export class TpEngineRenderer extends BaseRenderer {
     // Features
     for (const fs of this.features) {
       if (fs.state === 'completed') continue;
-      const sx = toScreenX(fs.feature.x);
       const sy = toScreenY(fs.feature.z);
-      this.renderFeature(fs.feature, sx, sy);
+      if (aboveHorizon(sy)) continue;
+      this.renderFeature(fs.feature, toScreenX(fs.feature.x), sy);
     }
 
     // NPCs
     for (const npc of this.npcs) {
-      const sx = toScreenX(npc.x);
       const sy = toScreenY(npc.z);
-      this.renderDog(sx, sy, npc.color, npc.accentColor, npc.facing, npc.name);
+      if (aboveHorizon(sy)) continue;
+      this.renderDog(toScreenX(npc.x), sy, npc.color, npc.accentColor, npc.facing, npc.name);
     }
 
     // Player (anchored in the lower ground band so it reads as on the ground)
