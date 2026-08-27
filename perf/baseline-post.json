@@ -1,15 +1,15 @@
 {
   "label": "post",
-  "recordedAt": "2026-08-26T08:38:13.395Z",
-  "gitCommit": "a99b19834ed9f9bf79cbd2fca93d4c0032df4ded",
+  "recordedAt": "2026-08-27T08:36:23.204Z",
+  "gitCommit": "e406865a6ef4c7c3f44adf6c0f27f903c8dd1c76",
   "scenario": "navigate-all",
   "frames": {
     "samples": 600,
-    "totalFrames": 1419,
+    "totalFrames": 1417,
     "avgMs": 16.749333333333336,
-    "p50Ms": 16.69999999999709,
-    "p95Ms": 16.799999999999272,
-    "maxMs": 33.30000000000291,
+    "p50Ms": 16.700000000000728,
+    "p95Ms": 16.700000000000728,
+    "maxMs": 33.400000000001455,
     "droppedFrames": 0
   },
   "zoneSwaps": 18,
