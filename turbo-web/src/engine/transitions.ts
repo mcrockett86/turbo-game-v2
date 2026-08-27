@@ -30,6 +30,11 @@ export interface TransitionOptions {
   zoomPoint?: { x: number; y: number };
   /** Color of the overlay. Defaults to black. */
   color?: string;
+  /**
+   * Sprint 8.4: optional caption drawn centered while the overlay mostly
+   * covers the screen (first-visit zone flavor banner). Pure text — no assets.
+   */
+  caption?: string;
 }
 
 interface TransitionState {
@@ -149,6 +154,22 @@ export class Transitions {
       case 'wipe': this.renderWipe(cover, color); break;
       case 'zoom': this.renderZoom(cover); break;
       case 'slide': this.renderSlide(cover, color); break;
+    }
+
+    // Sprint 8.4: zone-flavor caption banner (visible while mostly covered)
+    const caption = this.state.options.caption;
+    if (caption && cover > 0.4) {
+      const alpha = Math.min(1, (cover - 0.4) / 0.3);
+      ctx.globalAlpha = alpha;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+      ctx.strokeText(caption, W / 2, H / 2);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText(caption, W / 2, H / 2);
+      ctx.globalAlpha = 1;
     }
   }
 

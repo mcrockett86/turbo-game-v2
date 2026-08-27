@@ -22,6 +22,35 @@ export interface GameStateData {
   maxHappiness: number;
   startTime: number;
   gameOverTime: number | null;
+  /** Sprint 8.4: story thread — idempotent log of the journey (see StoryEntry). */
+  storyLog: StoryEntry[];
+  /** Sprint 8.4: zones seen at least once (drives first-visit intros). */
+  zonesVisited: string[];
+}
+
+/** Kinds of events recorded in the story journal (Sprint 8.4). */
+export type StoryEntryKind = 'zone' | 'threat' | 'companion' | 'item' | 'hint';
+
+/**
+ * One entry in the story journal (Sprint 8.4) — the "meaningful connections"
+ * surface: zones crossed, dangers out-witted, friends made, tokens found.
+ * Appended idempotently by `id` (`${kind}:${refId}`), so re-resolving a threat
+ * or re-collecting an item never duplicates the thread.
+ */
+export interface StoryEntry {
+  /** Dedupe key: `${kind}:${refId}`. */
+  id: string;
+  kind: StoryEntryKind;
+  /** Zone / threat / companion / item id. */
+  refId: string;
+  /** Display name (e.g. "🌊 Lake", "Traffic"). */
+  title: string;
+  /** Emoji icon from the data, when available. */
+  icon: string;
+  /** Detail line: threat outcome flavor, item story note, ... */
+  detail?: string;
+  /** Monotonic sequence number (append order). */
+  order: number;
 }
 
 // ===== Dog Types =====
@@ -74,6 +103,11 @@ export interface Zone {
   features?: Feature[]; // Both types
   music: string;
   hint: string;
+  /**
+   * Sprint 8.4: first-visit flavor line, shown as a banner during the zone
+   * transition (one line of world-building; the story thread is in the journal).
+   */
+  flavor?: string;
   companions?: string[]; // Companion IDs available in this zone
   returnZone?: string;
   threat?: string; // zone-specific threat ID (from THREATS) triggered when entering the zone
@@ -111,6 +145,16 @@ export interface RoomFeature {
   locked?: boolean;
   item?: string;
   companion?: string; // optional companion id met on interact (overrides zone fallback)
+  /**
+   * Sprint 8.4: examine text shown when the player interacts with a
+   * non-item feature (e.g. a paused TV). Rendered in the dialogue overlay.
+   */
+  examine?: string;
+  /**
+   * Sprint 8.4: readable object — interacting opens the hint panel with the
+   * zone's route-tied story hint (diary page, poster, medical record, ...).
+   */
+  readable?: boolean;
 }
 
 // ===== Obstacle & NPC Types =====
@@ -159,6 +203,10 @@ export interface Feature {
   item?: string; // optional item to pick up on interact
   gate?: string; // optional target zone id for hub gates
   threat?: string; // optional threat ID (from THREATS) triggered on interact
+  /** Sprint 8.4: examine text for non-item features (mirrors RoomFeature.examine). */
+  examine?: string;
+  /** Sprint 8.4: readable object → opens the hint panel (mirrors RoomFeature.readable). */
+  readable?: boolean;
 }
 
 // ===== Item Types =====
@@ -169,6 +217,11 @@ export interface Item {
   category: 'comfort' | 'clue' | 'key' | 'collectible' | 'food' | 'utility' | 'story' | 'crafting' | 'quest' | 'rare';
   stackable?: boolean;
   maxStack?: number;
+  /**
+   * Sprint 8.4: story note shown in a brief toast on pickup — one line
+   * connecting the item to the journey home (map fragment, collar piece, ...).
+   */
+  storyNote?: string;
 }
 
 export interface InventorySlot {

@@ -5,7 +5,7 @@
  * No direct mutations from outside modules.
  */
 
-import type { GameState, GameStateData, DogId, CompanionId } from '@/types';
+import type { GameState, GameStateData, DogId, CompanionId, StoryEntry, StoryEntryKind } from '@/types';
 import { HAPPINESS } from '@/config';
 import { ITEMS } from '@/data';
 
@@ -35,6 +35,8 @@ export class StateManager {
       maxHappiness: HAPPINESS.MAX,
       startTime: Date.now(),
       gameOverTime: null,
+      storyLog: [],
+      zonesVisited: [],
     };
   }
   
@@ -187,6 +189,47 @@ export class StateManager {
     this.emit('resolveThreat', { threatId, success });
   }
   
+  /**
+   * Sprint 8.4 — story thread. Record a first visit to a zone.
+   * Returns true exactly once per zone (drives the first-visit flavor intro).
+   */
+  markZoneVisited(zoneId: string): boolean {
+    if (!zoneId) return false;
+    if (this.state.zonesVisited.includes(zoneId)) return false;
+    this.state.zonesVisited.push(zoneId);
+    this.emit('zoneVisited', { zoneId });
+    return true;
+  }
+
+  /**
+   * Sprint 8.4 — story thread. Append a story-log entry, idempotently by
+   * `${kind}:${refId}`: re-resolving a threat or re-collecting an item never
+   * duplicates the thread. Returns true when a new entry was appended.
+   */
+  logStory(entry: { kind: StoryEntryKind; refId: string; title: string; icon: string; detail?: string }): boolean {
+    if (!entry.refId) return false;
+    const id = `${entry.kind}:${entry.refId}`;
+    if (this.state.storyLog.some(e => e.id === id)) return false;
+    this.state.storyLog.push({ ...entry, id, order: this.state.storyLog.length });
+    this.emit('storyLog', { id });
+    return true;
+  }
+
+  get storyLog(): ReadonlyArray<StoryEntry> {
+    return this.state.storyLog;
+  }
+
+  /**
+   * Sprint 8.4 — endgame recap. One narrative line summarizing the journey
+   * (pure function of state; unit-tested for format).
+   */
+  static recapLine(state: GameStateData): string {
+    const zones = state.zonesVisited.length;
+    const dangers = state.threatsResolved;
+    const friends = state.companionsMet.size;
+    return `You crossed ${zones} place${zones === 1 ? '' : 's'}, out-witted ${dangers} danger${dangers === 1 ? '' : 's'}, and made ${friends} friend${friends === 1 ? '' : 's'} on the way home.`;
+  }
+
   gameOver(): void {
     this.state.gameOverTime = Date.now();
     this.emit('gameOver');

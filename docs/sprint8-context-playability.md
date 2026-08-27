@@ -144,6 +144,18 @@ Per Mike (2026-08-26): *not* a feature-addition sprint. Improve the context laye
 
 **DoD:** FP zones have examine/read/pickup context; story journal + endgame recap exist; all new content is data-driven. Tests green.
 
+**Status (2026-08-27): COMPLETE.**
+- `types.ts`: `RoomFeature.examine` / `.readable`, `Feature.examine` / `.readable` (TP parity), `Item.storyNote`, `Zone.flavor`, new `StoryEntry` / `StoryEntryKind` + `GameStateData.storyLog` / `zonesVisited`.
+- `state.ts`: `markZoneVisited()` (true exactly once per zone), `logStory()` (idempotent per `${kind}:${refId}`, monotonic `order`), static `recapLine(state)` (pure, pluralized).
+- `engine/story-panel.ts` (new, ~200 lines): J-key journal panel — 5 groups (places / dangers / friends / tokens / clues), capped per group with "+N earlier…", pure renderer over `storyLog`.
+- `main.ts`: J toggles journal (Escape closes); `handleFeature` gains readable→hint-panel branch (item pickup preserved + story toast), examine fallback, storyNote toast + journal entry on pickup; zone intro = first-visit `flavor` banner riding the transition (new `TransitionOptions.caption`) + companion/dog voice line after the swap; threat resolutions + companion meetings join `storyLog`; bridge: `storyLog`, `zonesVisited`, `storyPanelVisible`, `lastZoneIntro`, `endgameRecap`, `interactFeature`, `findFeature`.
+- `transitions.ts`: `caption` option drawn centered while overlay mostly covers (gold text, outlined, alpha-faded) — zone-intro banner, no new component.
+- `endgame.ts`: victory screen gains the narrative recap line above the score block (defeat unchanged).
+- `data.ts`: all 18 zones ship `flavor`; 14 journey items ship `storyNote` (map/compass/collar pieces, lake stone, pinecone, tree clue, photos, diary page, letter, dog license, leash, blanket); 6 examine features (TV, bowls, hydrant, scent post, the flyer person); 6 readable objects (scent mark, balcony view, shelter poster, medical record, lost-dog poster, old tree).
+- Tests: `tests/unit/story-thread.test.ts` (10: logStory idempotency/order/refIds/empty, markZoneVisited, recapLine format + zero-state, zone flavor coverage, storyNote coverage incl. all story-category items, examine/readable coverage) + `tests/story-thread.spec.ts` (7 E2E: intro + log, no re-intro on revisit, TV examine, readable opens hint panel AND keeps item, storyNote toast + journal, J opens/closes journal with entries, victory recap).
+- 8.3 interaction fix: `companion-reactions.spec.ts` no-companion test now asserts "no companion line added" (overlay state unchanged) instead of "overlay empty" — the Sprint 8.4 zone intro legitimately owns the overlay on first visit.
+- Verification: unit 118/118, E2E 79/79 (9.0 min), tsc clean, build 62.80 kB gz (was 59.82 at 8.3; +2.98 kB = story panel + intro + data). Bundle well past the ~45 kB aspirational line — flagged in 8.2/8.3 notes; Mike has not requested a trim.
+
 ---
 
 ### 8.5 — Usability polish + deferred close-out

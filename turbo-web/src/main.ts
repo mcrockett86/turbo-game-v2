@@ -25,6 +25,7 @@ import { DialogueOverlay } from './engine/dialogue-overlay';
 import { MapStore } from './engine/map-store';
 import { MapPanel } from './engine/map-panel';
 import { HintPanel } from './engine/hint-panel';
+import { StoryPanel } from './engine/story-panel';
 import { Transitions } from './engine/transitions';
 import { perf } from './engine/perf';
 import { Endgame } from './engine/endgame';
@@ -50,6 +51,7 @@ const dialogueOverlay = new DialogueOverlay();
 const mapStore = new MapStore();
 const mapPanel = new MapPanel();
 const hintPanel = new HintPanel();
+const storyPanel = new StoryPanel();
 const transitions = new Transitions();
 const endgame = new Endgame();
 
@@ -113,11 +115,19 @@ const onKeyDown = (e: KeyboardEvent) => {
   if (k === 'm') {
     mapPanel.setVisible(!mapPanel.isVisible);
   }
+  if (k === 'j') {
+    // Sprint 8.4: story journal
+    storyPanel.toggle(State.getState().storyLog);
+    inventoryRenderer.hide();
+    companionPanel.hide();
+    hintPanel.hide();
+  }
   if (e.key === 'Escape') {
     // Close any open panel
     if (inventoryRenderer.visible) inventoryRenderer.hide();
     if (companionPanel.isVisible) companionPanel.hide();
     if (hintPanel.isVisible) hintPanel.hide();
+    if (storyPanel.isVisible) storyPanel.hide();
   }
 };
 // ===== Canvas Click Routing (endgame button, companion panel) =====
@@ -200,6 +210,7 @@ function init(): void {
     dialogueOverlay.setVisibilityCheck(() => companionPanel.isVisible || hintPanel.isVisible || inventoryRenderer.visible);
     mapPanel.init(canvasEl, mapStore);
     hintPanel.init(canvasEl);
+    storyPanel.init(canvasEl);
     transitions.init(canvasEl);
     endgame.init(canvasEl);
   }
@@ -285,6 +296,15 @@ function init(): void {
       dialogueOverlay.show(companion.name, line, companion.color, companion.accentColor);
       setTimeout(() => Audio.endDuck(), 6000);
     };
+
+    // Sprint 8.4: the resolution joins the story thread (idempotent per threat)
+    State.logStory({
+      kind: 'threat',
+      refId: threatId,
+      title: threat?.name ?? threatId,
+      icon: threat?.icon ?? '⚔️',
+      detail: threat ? (success ? threat.successLine : threat.failLine) : undefined,
+    });
 
     // Manga cutaway for combat threats
     if (threat?.type === 'combat' && canvasEl) {
@@ -372,8 +392,7 @@ function triggerZoneThreat(threatId: string): void {
 // ===== Zone / Room Routing =====
 
 /** Start a zone transition overlay. Swaps the zone at the midpoint. */
-function playZoneTransition(zoneId: string, onSwap: () => void, priorZoneId: string | null): void {
-  const zone = ZONES[zoneId];
+function playZoneTransition(zoneId: string, zone: Zone, onSwap: () => void, priorZoneId: string | null): void {
   const kind = zone?.transition ?? 'fade';
   // First zone of a run: no prior scene to hide, just swap immediately.
   if (!activeRenderer) { onSwap(); return; }
@@ -382,7 +401,8 @@ function playZoneTransition(zoneId: string, onSwap: () => void, priorZoneId: str
   // overlay. The zone id is already recorded to the target by the caller, so
   // compare against the *prior* zone, not currentZoneId.
   if (priorZoneId === zoneId) { onSwap(); return; }
-  transitions.play(kind, onSwap, 500, { direction: 'right', color: '#0a0a0a' });
+  // Sprint 8.4: first-visit flavor banner rides the transition overlay
+  transitions.play(kind, onSwap, 500, { direction: 'right', color: '#0a0a0a', caption: pendingZoneIntro?.flavor });
 }
 
 /** Public entry point: records the zone immediately (map/state), then plays a
@@ -402,8 +422,58 @@ function enterZone(zoneId: string): void {
   State.enterZone(zoneId);
   recordZoneInMap(zone);
 
+  // Sprint 8.4: first-visit flavor intro (banner + voice line) — computed
+  // before the transition so the caption can ride the overlay.
+  prepareZoneIntro(zone);
+
   // Animate the visual swap (renderer + audio) at the midpoint
-  playZoneTransition(zoneId, () => performZoneEntry(zoneId), priorZoneId);
+  playZoneTransition(zoneId, zone, () => performZoneEntry(zoneId), priorZoneId);
+}
+
+/**
+ * Sprint 8.4 — zone intro. First visit to a zone with a `flavor` line gets a
+ * banner during the transition plus a voice line (active companion if present,
+ * else the dog) once the new scene is on screen. Recorded once per zone via
+ * State.markZoneVisited. Exposed on the debug bridge for E2E assertions.
+ */
+let lastZoneIntro: { zoneId: string; flavor: string; speaker: string } | null = null;
+let pendingZoneIntro: { zoneId: string; flavor: string } | null = null;
+
+function prepareZoneIntro(zone: Zone): void {
+  const firstVisit = State.markZoneVisited(zone.id);
+  const icon = zone.name.match(/\p{Extended_Pictographic}/u)?.[0] ?? '🌍';
+  const logged = State.logStory({
+    kind: 'zone',
+    refId: zone.id,
+    title: zone.name,
+    icon,
+    detail: firstVisit ? zone.flavor : undefined,
+  });
+  if (logged && firstVisit && zone.flavor) {
+    pendingZoneIntro = { zoneId: zone.id, flavor: zone.flavor };
+  }
+}
+
+function showPendingZoneIntro(): void {
+  const intro = pendingZoneIntro;
+  pendingZoneIntro = null;
+  if (!intro) return;
+
+  const speakerId = State.activeCompanion;
+  const dog = DOGS[State.currentDog ?? ''];
+  const speaker = speakerId
+    ? COMPANIONS[speakerId]?.name ?? dog?.name ?? 'You'
+    : dog?.name ?? 'You';
+  lastZoneIntro = { zoneId: intro.zoneId, flavor: intro.flavor, speaker };
+
+  if (speakerId) {
+    Audio.playSfx('bark');
+    Audio.beginDuck();
+    dialogueOverlay.show(speaker, intro.flavor, COMPANIONS[speakerId]!.color, COMPANIONS[speakerId]!.accentColor);
+    setTimeout(() => Audio.endDuck(), 6000);
+  } else {
+    dialogueOverlay.show(speaker, intro.flavor, dog?.colors?.accent ?? '#d4af2e', '#ffd700');
+  }
 }
 
 /** Core zone-entry logic: swap renderer + start audio (called at transition midpoint). */
@@ -426,6 +496,9 @@ function performZoneEntry(zoneId: string): void {
 
   // Enter the entrance room (or first room)
   const entranceRoom = zone.rooms?.find(r => r.isEntrance) ?? zone.rooms?.[0];
+
+  // Sprint 8.4: voice the first-visit flavor line now that the new scene is up
+  showPendingZoneIntro();
 
   // Zone-specific threat: auto-triggers on zone entry (Sprint 4 zone threat mapping)
   if (zone.threat) {
@@ -665,6 +738,13 @@ function handleFeature(feature: { type: string; item?: string; gate?: string; th
       ?? zone.companions?.[0]
       ?? Object.keys(COMPANIONS)[0];
     State.meetCompanion(companionId);
+    State.logStory({
+      kind: 'companion',
+      refId: companionId,
+      title: COMPANIONS[companionId]?.name ?? companionId,
+      icon: '🐕',
+      detail: 'A friend for the road home.',
+    });
     showCompanionDialogue(companionId);
     companionPanel.refresh(companionSnapshot());
     return;
@@ -677,7 +757,47 @@ function handleFeature(feature: { type: string; item?: string; gate?: string; th
       // 7.7 pickup burst at the feature's location (TP zones).
       const r = (window as any).__activeRenderer?.();
       if (r && typeof r.burstAtWorld === 'function' && feature.x != null && feature.z != null) r.burstAtWorld(feature.x, feature.z);
+      // Sprint 8.4: story-note toast + journal entry for journey items
+      const item = ITEMS[feature.item];
+      if (item.storyNote) {
+        const dog = DOGS[State.currentDog ?? ''];
+        dialogueOverlay.show(dog?.name ?? 'You', item.storyNote, dog?.colors?.accent ?? '#d4af2e', '#ffd700');
+      }
+      State.logStory({
+        kind: 'item',
+        refId: feature.item,
+        title: item.name,
+        icon: item.name.match(/\p{Extended_Pictographic}/u)?.[0] ?? '🎒',
+        detail: item.storyNote,
+      });
+      // Sprint 8.4: readable object that also carries an item (diary page,
+      // poster, record) — read it too: open the zone's route-tied story panel.
+      if ((feature as { readable?: boolean }).readable) {
+        State.logStory({
+          kind: 'hint',
+          refId: zone.id,
+          title: (feature as { label?: string }).label ?? 'Clue',
+          icon: '📜',
+          detail: zone.hint,
+        });
+        hintPanel.show(zone, hintSnapshot());
+      }
     }
+    return;
+  }
+
+  // Sprint 8.4 — readable object without an item: open the hint panel with
+  // the zone's route-tied story text.
+  if ((feature as { readable?: boolean }).readable) {
+    State.logStory({
+      kind: 'hint',
+      refId: zone.id,
+      title: (feature as { label?: string }).label ?? 'Clue',
+      icon: '📜',
+      detail: zone.hint,
+    });
+    Audio.playSfx('select');
+    hintPanel.show(zone, hintSnapshot());
     return;
   }
 
@@ -688,11 +808,18 @@ function handleFeature(feature: { type: string; item?: string; gate?: string; th
     return;
   }
 
-  // Hint / clue -> unlock hint
+  // Hint / clue -> unlock hint + open the panel with the zone's route-tied story
   if (ftype === 'hint' || ftype === 'tree_clue') {
     State.unlockHint(zone.id);
+    State.logStory({
+      kind: 'hint',
+      refId: zone.id,
+      title: zone.name,
+      icon: '📜',
+      detail: zone.hint,
+    });
     Audio.playSfx('select');
-    hintPanel.refresh(zone, hintSnapshot());
+    hintPanel.show(zone, hintSnapshot());
     return;
   }
 
@@ -708,7 +835,15 @@ function handleFeature(feature: { type: string; item?: string; gate?: string; th
     return;
   }
 
-  // Default: play a generic sound
+  // Default: examine text if the feature carries one (Sprint 8.4), else a
+  // generic acknowledgement sound.
+  const examine = (feature as { examine?: string }).examine;
+  if (examine) {
+    const dog = DOGS[State.currentDog ?? ''];
+    Audio.playSfx('select');
+    dialogueOverlay.show(dog?.name ?? 'You', examine, dog?.colors?.accent ?? '#d4af2e', '#ffd700');
+    return;
+  }
   Audio.playSfx('select');
 }
 
@@ -820,6 +955,8 @@ function update(delta: number, time: number): void {
   } else if (hintPanel.isVisible) {
     const zone = ZONES[currentZoneId ?? ''];
     if (zone) hintPanel.refresh(zone, hintSnapshot());
+  } else if (storyPanel.isVisible) {
+    storyPanel.refresh(State.getState().storyLog);
   } else if (inventoryRenderer.visible) {
     inventoryRenderer.update(0, time);
   }
@@ -861,6 +998,12 @@ function update(delta: number, time: number): void {
   get map() { return mapStore.zones().map((z) => ({ id: z.id, explored: z.explored, current: z.current, elements: z.elements.length, rooms: z.rooms })); },
   get itemsCollected() { return State.getState().itemsCollected; },
   get threatsResolved() { return State.getState().threatsResolved; },
+  // Sprint 8.4 — story thread surface
+  get storyLog() { return [...State.getState().storyLog]; },
+  get zonesVisited() { return [...State.getState().zonesVisited]; },
+  get storyPanelVisible() { return storyPanel.isVisible; },
+  get lastZoneIntro() { return lastZoneIntro; },
+  get endgameRecap() { return (endgame as any).recapText ?? null; },
   threatManager, // direct handle for test-only resolve/inspection
   transitions, // direct handle for test-only transition inspection
   ZONES, // zone data for test inspection
@@ -877,6 +1020,19 @@ function update(delta: number, time: number): void {
   // Navigate directly (bypasses click detection for test reliability)
   navigateToZone(zoneId: string) { enterZone(zoneId); },
   navigateToRoom(roomId: string) { enterRoom(roomId); },
+  // Sprint 8.4: drive the shared feature-interaction path (examine/readable/
+  // pickup/story) for deterministic E2E — same function the renderers call.
+  interactFeature: (zoneId: string, feature: unknown) => {
+    const zone = ZONES[zoneId];
+    if (zone && feature) handleFeature(feature as any, zone);
+  },
+  // Sprint 8.4: deterministic feature lookup (top-level + rooms) for E2E.
+  findFeature: (zoneId: string, field: string, value: unknown) => {
+    const zone = ZONES[zoneId];
+    if (!zone) return null;
+    const feats = [...(zone.features ?? []), ...(zone.rooms ?? []).flatMap(r => r.features ?? [])];
+    return feats.find(f => (f as any)[field] === value) ?? null;
+  },
   forceEndgame(result: 'victory' | 'defeat') {
     if (result === 'victory') showVictory();
     else showDefeat();

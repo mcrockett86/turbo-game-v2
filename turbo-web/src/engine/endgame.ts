@@ -10,6 +10,7 @@
  */
 
 import type { GameStateData } from '@/types';
+import { StateManager } from './state';
 
 export type EndgameResult = 'victory' | 'defeat';
 
@@ -42,6 +43,7 @@ export class Endgame {
 
   private outcome: EndgameResult | null = null;
   private score: Score | null = null;
+  private recap: string | null = null;
   private buttons: Button[] = [];
   private _onRestart: (() => void) | null = null;
   private shown = false;
@@ -64,6 +66,8 @@ export class Endgame {
   show(result: EndgameResult, state: GameStateData): void {
     this.outcome = result;
     this.score = this.computeScore(state);
+    // Sprint 8.4: narrative recap above the score block (victory only).
+    this.recap = result === 'victory' ? StateManager.recapLine(state) : null;
     this.shown = true;
     this.layoutButtons();
     this.render();
@@ -74,8 +78,14 @@ export class Endgame {
     this.shown = false;
     this.outcome = null;
     this.score = null;
+    this.recap = null;
     this.buttons = [];
     this.ctx?.clearRect(0, 0, this.canvas?.width ?? 0, this.canvas?.height ?? 0);
+  }
+
+  /** Test hook: the narrative recap line (null on defeat/hidden). */
+  get recapText(): string | null {
+    return this.recap;
   }
 
   get active(): boolean {
@@ -167,6 +177,13 @@ export class Endgame {
       ? 'Turbo made it back. What a journey.'
       : "Turbo's hope ran out along the way. Give it another try.";
     ctx.fillText(sub, cx, H * 0.27);
+
+    // Sprint 8.4: one-line narrative recap (victory), above the score block
+    if (this.outcome === 'victory' && this.recap) {
+      ctx.fillStyle = '#ffe9a0';
+      ctx.font = 'italic 15px sans-serif';
+      ctx.fillText(this.recap, cx, H * 0.32);
+    }
 
     // Score panel
     const panelW = 460, panelH = 260;

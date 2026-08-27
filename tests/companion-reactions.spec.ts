@@ -48,18 +48,28 @@ test.describe('Sprint 8.3 — companion reactions', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('no active companion — threat still resolves, no crash', async ({ page }) => {
+  test('no active companion — threat still resolves, no crash, no companion line', async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', (err) => pageErrors.push(String(err)));
 
     await page.goto('/');
     await startGame(page);
 
+    // Sprint 8.4: the first zone visit speaks a zone-intro line — capture it
+    // so we can assert the threat did NOT add a companion reaction on top.
+    const before = await page.evaluate(() => (window as any).__turbo.dialogueOverlayState);
+
     await resolveThreat(page, null, false);
     await page.waitForTimeout(1000);
 
-    const active = await page.evaluate(() => (window as any).__turbo.dialogueOverlayActive);
-    expect(active).toBe(false);
+    const after = await page.evaluate(() => (window as any).__turbo.dialogueOverlayState);
+    if (before && after) {
+      // same line/speaker as the pre-threat overlay → no companion spoke
+      expect(after.line).toBe(before.line);
+      expect(after.name).toBe(before.name);
+    } else {
+      expect(after).toBeFalsy();
+    }
     const phase = await page.evaluate(() => (window as any).__turbo.threatPhase);
     expect(phase).toBe('idle');
     expect(pageErrors).toEqual([]);
