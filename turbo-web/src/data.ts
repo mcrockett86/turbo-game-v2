@@ -1196,7 +1196,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Cars are zooming by! Time your crossing!',
     solve: 'Press SPACE when the gap is right',
     mangaText: 'SCREEEECH!',
-    mangaType: 'near-miss'
+    mangaType: 'near-miss',
+    scene: 'street',
+    successLine: 'You slip through the gap just as the brakes screech.',
+    failLine: 'The car swerves around you — you bolt into the bushes, heart pounding.',
+    difficulty: { gapWidth: 22, speed: 48 }
   },
   cat: {
     name: 'Mean Cat',
@@ -1205,7 +1209,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A hissing cat blocks the path!',
     solve: 'Press SPACE in rhythm to scare it off',
     mangaText: 'SCRATCH!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'street',
+    beats: ['HISS!', 'SCREECH!', 'SCATTER!'],
+    successLine: 'The cat bolts up a fence, tail puffed to twice its size.',
+    failLine: 'It rakes your ear. You slink away with a sting and a grudge.'
   },
   bully: {
     name: 'Bully Dog',
@@ -1214,7 +1222,12 @@ export const THREATS: Record<string, Threat> = {
     description: 'A tough-looking dog growls at you!',
     solve: 'Press SPACE in rhythm to intimidate it',
     mangaText: 'GRRR!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'street',
+    beats: ['GROWL!', 'SNAP!', 'BACK OFF!'],
+    successLine: 'The bully breaks eye contact first and pads off, tail low.',
+    failLine: 'You back away slowly — smart. That\'s how you survive.',
+    difficulty: { pulseSpeed: 0.8 }
   },
   storm: {
     name: 'Thunderstorm',
@@ -1223,7 +1236,10 @@ export const THREATS: Record<string, Threat> = {
     description: 'Thunder roars! Find shelter or comfort yourself.',
     solve: 'Find shelter quickly or use a comfort item',
     mangaText: 'BOOM!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'apartment',
+    successLine: 'Thunder rumbles overhead, muffled by the ceiling. Almost cozy.',
+    failLine: 'Lightning pops right outside the window. You shake, ears flat.'
   },
   vacuum: {
     name: 'Vacuum Monster',
@@ -1232,7 +1248,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'The dreaded vacuum cleaner! Hide!',
     solve: 'Stay still when it approaches, move when safe',
     mangaText: 'VRRRRR!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'shelter',
+    successLine: 'The vacuum roars past — you were a statue. It loses interest.',
+    failLine: 'It corners you! You scramble up the shelving, ears ringing.',
+    difficulty: { riseRate: 35 }
   },
   mailman: {
     name: 'Mail Carrier',
@@ -1241,7 +1261,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'The mail carrier is coming! They might have something for you.',
     solve: 'Press SPACE to intercept the mail package',
     mangaText: 'THUMP!',
-    mangaType: 'near-miss'
+    mangaType: 'near-miss',
+    scene: 'street',
+    successLine: 'You intercept the package before it hits the porch. The scent says: home.',
+    failLine: 'The carrier scoops it up and walks on. The scent fades.',
+    difficulty: { gapWidth: 26, speed: 42 }
   },
   garden_hose: {
     name: 'Garden Hose',
@@ -1250,7 +1274,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A sprinkler is spraying everywhere! Stay dry!',
     solve: 'Move to the dry zone when the sprinkler is away',
     mangaText: 'SPRINKLE!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'garden',
+    successLine: 'The sprinkler swings past. You stay dry — and proud.',
+    failLine: 'Soggy. Soaking. You drip behind the rose bush.',
+    difficulty: { riseRate: 28, fallRate: 22 }
   },
   construction: {
     name: 'Construction Crew',
@@ -1259,7 +1287,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Heavy machinery is working! Watch for the crane!',
     solve: 'Press SPACE when the crane arm is clear',
     mangaText: 'CLANG!',
-    mangaType: 'near-miss'
+    mangaType: 'near-miss',
+    scene: 'street',
+    successLine: 'The crane arm swings wide. You\'re already in its shadow.',
+    failLine: 'Dirt thuds down where you stood. You scatter, nose low.',
+    difficulty: { gapWidth: 20, speed: 52 }
   },
   ice_cream_truck: {
     name: 'Ice Cream Truck',
@@ -1268,7 +1300,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'The ice cream truck is here! But can you reach it?',
     solve: 'Follow the music and catch the truck before it leaves',
     mangaText: 'DOOOOONG!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'park',
+    successLine: 'You catch the truck mid-song. The window smells like vanilla.',
+    failLine: 'It rounds the corner and goes. You chase the jingle three blocks.',
+    difficulty: { holdRate: 22, timeLimit: 7 }
   },
   squirrel: {
     name: 'Squirrel',
@@ -1277,7 +1313,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A squirrel is taunting you from a tree!',
     solve: 'Stay still and wait for the right moment to pounce',
     mangaText: 'SQUEAK!',
-    mangaType: 'near-miss'
+    mangaType: 'near-miss',
+    scene: 'forest',
+    successLine: 'It freezes, eyes wide. Then it\'s gone up a pine, safe.',
+    failLine: 'It darts to a higher branch, chittering at you. Rude.',
+    difficulty: { riseRate: 25, fallRate: 25 }
   },
   neighbor_dog: {
     name: 'Neighbor Dog',
@@ -1286,7 +1326,12 @@ export const THREATS: Record<string, Threat> = {
     description: 'A friendly dog wants to play! But how to respond?',
     solve: 'Press SPACE to bark back or wag tail',
     mangaText: 'WOOF!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'street',
+    beats: ['WOOF!', 'WOOF-WOOF!'],
+    successLine: 'You bark back. It wags. A new friend for the road?',
+    failLine: 'It takes your silence as a dare and charges. You zig-zag away.',
+    difficulty: { beats: 2, pulseSpeed: 0.6, targetWindow: 0.26 }
   },
   storm_sewer: {
     name: 'Storm Drain',
@@ -1295,7 +1340,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Rain is filling the storm drain! Your toy might be down there!',
     solve: 'Press SPACE to grab the toy before it washes away',
     mangaText: 'WHOOSH!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'park',
+    successLine: 'You grab the toy mid-swirl. The drain spits it out to you.',
+    failLine: 'The current wins. It swirls down, gone to the river.',
+    difficulty: { gapWidth: 20, speed: 55 }
   },
   // New threats from new zones
   lake_ripple: {
@@ -1305,7 +1354,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Ripples in the lake! Something is coming!',
     solve: 'Press SPACE to jump over the wave',
     mangaText: 'SPLASH!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'lake',
+    successLine: 'You leap the ripple. Water clings to your paws, then flies off.',
+    failLine: 'The ripple catches your haunches. You shake off a lake\'s worth.',
+    difficulty: { gapWidth: 22, speed: 48 }
   },
   pet_shop_cat: {
     name: 'Pet Shop Cat',
@@ -1314,7 +1367,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A pampered cat guards the treats!',
     solve: 'Press SPACE in rhythm to distract it',
     mangaText: 'MEOW!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'pet_shop',
+    beats: ['MEOW!', 'HUFF!', 'CLINK!'],
+    successLine: 'The cat swats a shelf, scolds the room, and regales itself.',
+    failLine: 'It drops a fish bowl. The clerk gasps. You feel small.'
   },
   dog_show_judge: {
     name: 'Dog Show Judge',
@@ -1323,7 +1380,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'The judge is watching! Pose correctly!',
     solve: 'Press SPACE when the pose indicator aligns',
     mangaText: 'POSE!',
-    mangaType: 'near-miss'
+    mangaType: 'near-miss',
+    scene: 'dog_show',
+    successLine: 'Perfect pose. The judge\'s pencil pauses — a real compliment.',
+    failLine: 'You break form. The crowd murmurs. One less ribbon for you.',
+    difficulty: { gapWidth: 18, speed: 50 }
   },
   forest_wolf: {
     name: 'Forest Wolf',
@@ -1332,7 +1393,12 @@ export const THREATS: Record<string, Threat> = {
     description: 'A wild wolf blocks the path!',
     solve: 'Press SPACE in rhythm to assert dominance',
     mangaText: 'HOWL!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'forest',
+    beats: ['SNARL!', 'HOWL!', 'YIELD!'],
+    successLine: 'It holds your gaze, then drops its head and slips into the pines.',
+    failLine: 'Its shadow falls over you. You back away one slow step at a time.',
+    difficulty: { pulseSpeed: 0.8, targetWindow: 0.18 }
   },
   beach_crab: {
     name: 'Beach Crab',
@@ -1341,7 +1407,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A crab with giant claws! Hide!',
     solve: 'Stay still when the crab approaches, move when safe',
     mangaText: 'CLICK!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'beach',
+    successLine: 'It pinches the sand, not you. You back off, shell to shell.',
+    failLine: 'A claw snaps your ear. You hop around the dune in a circle.',
+    difficulty: { riseRate: 30, fallRate: 18 }
   },
   mountain_goat: {
     name: 'Mountain Goat',
@@ -1350,7 +1420,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A goat charges down the mountain!',
     solve: 'Press SPACE to dodge at the right moment',
     mangaText: 'CLACK!',
-    mangaType: 'near-miss'
+    mangaType: 'near-miss',
+    scene: 'mountain',
+    successLine: 'It rounds the boulder at full gallop. You\'re already under the ledge.',
+    failLine: 'Hooves thunder past. You dive into the scree — and slide with it.',
+    difficulty: { gapWidth: 18, speed: 58 }
   },
   garden_snake: {
     name: 'Garden Snake',
@@ -1359,7 +1433,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A snake slithers through the flowers!',
     solve: 'Move away slowly without sudden movements',
     mangaText: 'HISS!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'garden',
+    successLine: 'It unhooks from the rose and vanishes into the fence. No scales lost.',
+    failLine: 'It strikes at your tail. You yelp and scramble over the hedge.',
+    difficulty: { riseRate: 24, fallRate: 24 }
   },
   library_silent: {
     name: 'Library Silence',
@@ -1368,7 +1446,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'The librarian shushes you! Find quiet comfort.',
     solve: 'Find a cozy spot and stay quiet',
     mangaText: 'SHHH!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'library',
+    successLine: 'You settle under the reading nook. Even the dust motes hush.',
+    failLine: 'The librarian\'s finger points. You tiptoe out, tail between.',
+    difficulty: { holdRate: 20, timeLimit: 8 }
   },
   market_chase: {
     name: 'Market Chase',
@@ -1377,7 +1459,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Vendors are rushing! Dodge the crowd!',
     solve: 'Press SPACE to weave through the crowd',
     mangaText: 'MOVE!',
-    mangaType: 'near-miss'
+    mangaType: 'near-miss',
+    scene: 'market',
+    successLine: 'You weave through the gap between cabbages and fish. Clean.',
+    failLine: 'A fish basket clips your back. You scatter, scales everywhere.',
+    difficulty: { gapWidth: 20, speed: 54 }
   },
   park_squirrel: {
     name: 'Park Squirrel Army',
@@ -1386,7 +1472,12 @@ export const THREATS: Record<string, Threat> = {
     description: 'A horde of squirrels attacks!',
     solve: 'Press SPACE in rhythm to scare them off',
     mangaText: 'SQUEAK!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'park',
+    beats: ['SQUEAK!', 'SQUIRM!', 'SCATTER!'],
+    successLine: 'The army scatters up the oak in a brown storm. Acorns rain.',
+    failLine: 'They mob your tail. You bark, they shriek, the park is chaos.',
+    difficulty: { pulseSpeed: 0.75 }
   },
   // New environmental threats
   fog: {
@@ -1396,7 +1487,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Visibility is zero! Find your way through.',
     solve: 'Follow the scent trail through the fog',
     mangaText: 'FOG!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'lake',
+    successLine: 'You follow the scent until the fog thins into morning light.',
+    failLine: 'You circle the same birch three times. The fog wins a round.',
+    difficulty: { holdRate: 22, timeLimit: 8 }
   },
   lightning: {
     name: 'Lightning Strike',
@@ -1405,7 +1500,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Lightning flashes! Find shelter quickly!',
     solve: 'Press SPACE to run to the nearest shelter',
     mangaText: 'ZAP!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'mountain',
+    successLine: 'You reach the cave mouth as the bolt takes the peak.',
+    failLine: 'The flash catches you open on the scree. You shake for a minute.',
+    difficulty: { gapWidth: 16, speed: 60 }
   },
   flood: {
     name: 'Flash Flood',
@@ -1414,7 +1513,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Water is rising! Find high ground!',
     solve: 'Move to elevated areas before the water reaches you',
     mangaText: 'WHOOSH!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'lake',
+    successLine: 'You reach the ledge just as the water surges. Dry and safe.',
+    failLine: 'The flood catches your paws. You swim — and it\'s colder than it looks.',
+    difficulty: { riseRate: 40, fallRate: 15, safeHold: 4 }
   },
   earthquake: {
     name: 'Earthquake',
@@ -1423,7 +1526,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'The ground is shaking! Stay balanced!',
     solve: 'Press SPACE to stabilize yourself',
     mangaText: 'RUMBLE!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'street',
+    successLine: 'You find your balance as the windows rattle. You didn\'t flinch.',
+    failLine: 'The floor lurches. You crash into a doorframe — a very rude doorframe.',
+    difficulty: { gapWidth: 18, speed: 56 }
   },
   // New animal threats
   raccoon: {
@@ -1433,7 +1540,12 @@ export const THREATS: Record<string, Threat> = {
     description: 'A raccoon steals your items!',
     solve: 'Press SPACE in rhythm to retrieve your things',
     mangaText: 'GRAB!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'cave',
+    beats: ['GRAZE!', 'GRAB!', 'GONE!'],
+    successLine: 'You pounce. The raccoon drops the scrap and vanishes into the dark.',
+    failLine: 'It vanishes with your snack. You hear it munching, smug.',
+    difficulty: { pulseSpeed: 0.75 }
   },
   owl: {
     name: 'Night Owl',
@@ -1442,7 +1554,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A large owl stares at you in the dark!',
     solve: 'Stay calm and blink slowly to show friendliness',
     mangaText: 'HOOT!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'waterfall',
+    successLine: 'It blinks, slow as a waterfall. You blink back. An understanding is reached.',
+    failLine: 'You startle. It hoots — and the whole ravine answers.',
+    difficulty: { holdRate: 18, timeLimit: 9 }
   },
   deer: {
     name: 'Deer Herd',
@@ -1451,7 +1567,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A herd of deer blocks the path!',
     solve: 'Wait patiently for them to move aside',
     mangaText: 'PRANCE!',
-    mangaType: 'near-miss'
+    mangaType: 'near-miss',
+    scene: 'waterfall',
+    successLine: 'They part around you like a river around a stone. Silent.',
+    failLine: 'You spook the herd. They stampede, and the moss shakes.',
+    difficulty: { riseRate: 22, fallRate: 26 }
   },
   // New special threats
   treasure_guardian: {
@@ -1461,7 +1581,12 @@ export const THREATS: Record<string, Threat> = {
     description: 'A legendary guardian protects the treasure!',
     solve: 'Press SPACE in rhythm to prove your worthiness',
     mangaText: 'CLANG!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'cave',
+    beats: ['CLANG!', 'FLASH!', 'WORTHY!', 'OPEN!'],
+    successLine: 'The guardian steps aside. The treasure glints, patient and old.',
+    failLine: 'Its blade rings the stone. You live to try again — probably.',
+    difficulty: { beats: 4, pulseSpeed: 0.8, targetWindow: 0.16 }
   },
   // New zone-specific threats
   lake_monster: {
@@ -1471,7 +1596,12 @@ export const THREATS: Record<string, Threat> = {
     description: 'Something large stirs beneath the lake!',
     solve: 'Press SPACE in rhythm to calm the waters',
     mangaText: 'SPLASH!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'lake',
+    beats: ['SPLASH!', 'SURGE!', 'STILL!'],
+    successLine: 'The water calms. Something huge exhales beneath you — and passes.',
+    failLine: 'A fin the size of a fence slams the lake. You swim. You swim hard.',
+    difficulty: { pulseSpeed: 0.8 }
   },
   pet_shop_bell: {
     name: 'Pet Shop Bell',
@@ -1480,7 +1610,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'The door bell won\'t stop ringing!',
     solve: 'Press SPACE to silence it before the cat notices',
     mangaText: 'DING!',
-    mangaType: 'near-miss'
+    mangaType: 'near-miss',
+    scene: 'pet_shop',
+    successLine: 'You ring it once, cleanly. The shop exhales. Peace.',
+    failLine: 'It rings and rings. The cat\'s ears swivel like satellites.',
+    difficulty: { gapWidth: 24, speed: 44 }
   },
   dog_show_roar: {
     name: 'Dog Show Roar',
@@ -1489,7 +1623,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'The crowd roars! Stand your ground!',
     solve: 'Press SPACE in rhythm to show confidence',
     mangaText: 'ROAR!',
-    mangaType: 'fight'
+    mangaType: 'fight',
+    scene: 'dog_show',
+    beats: ['WOOF!', 'POSE!', 'BOW!'],
+    successLine: 'The crowd roars. You hold your pose — and it\'s for you.',
+    failLine: 'The noise swells. You blink. One ribbon slips off your chest.'
   },
   forest_thorn: {
     name: 'Forest Thorns',
@@ -1498,7 +1636,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Thorny vines block the path!',
     solve: 'Find the safe passage through the thorns',
     mangaText: 'PRICK!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'forest',
+    successLine: 'You find the gap in the brambles and slip through uncut.',
+    failLine: 'A thorn hooks your collar. You twist free, brambles in your fur.',
+    difficulty: { riseRate: 26, fallRate: 22 }
   },
   beach_wave: {
     name: 'Big Wave',
@@ -1507,7 +1649,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A huge wave approaches the shore!',
     solve: 'Press SPACE to jump to safety',
     mangaText: 'CRASH!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'beach',
+    successLine: 'You spring to the dune as the wave crashes. Sand, not seawater.',
+    failLine: 'The wave takes your legs. You\'re a sock in a washing machine.',
+    difficulty: { gapWidth: 20, speed: 55 }
   },
   mountain_rockfall: {
     name: 'Rockfall',
@@ -1516,7 +1662,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'Rocks are falling from above!',
     solve: 'Press SPACE to dodge the falling rocks',
     mangaText: 'CLATTER!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'mountain',
+    successLine: 'You roll under the boulder\'s shadow. Dust settles. You\'re still here.',
+    failLine: 'A stone clips your shoulder. You scramble up the slope, ears ringing.',
+    difficulty: { gapWidth: 17, speed: 57 }
   },
   garden_insect: {
     name: 'Giant Insect',
@@ -1525,7 +1675,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A giant bug crawls toward you!',
     solve: 'Stay still and hope it moves on',
     mangaText: 'BUZZ!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'garden',
+    successLine: 'It pauses, antennae twitching, and crawls on without you.',
+    failLine: 'It lands on your nose. You sneeze. It sneezes back. You bolt.',
+    difficulty: { riseRate: 20, fallRate: 28 }
   },
   library_boo: {
     name: 'Library Boo',
@@ -1534,7 +1688,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A ghostly figure appears among the books!',
     solve: 'Show kindness to the spirit',
     mangaText: 'BOO!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'library',
+    successLine: 'You show your paws are empty. The spirit nods and shelves a book.',
+    failLine: 'The shelves creak. Something cold follows you to the door.',
+    difficulty: { holdRate: 20, timeLimit: 8 }
   },
   market_fire: {
     name: 'Market Fire',
@@ -1543,7 +1701,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A stall catches fire! Help put it out!',
     solve: 'Press SPACE to grab water buckets',
     mangaText: 'WHOOSH!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'market',
+    successLine: 'You grab the bucket and toss it. The stall\'s saved. The vendor hugs your head.',
+    failLine: 'The flames leap the crate. You back off, whiskers singed.',
+    difficulty: { gapWidth: 19, speed: 52 }
   },
   park_tornado: {
     name: 'Park Tornado',
@@ -1552,7 +1714,11 @@ export const THREATS: Record<string, Threat> = {
     description: 'A small tornado forms in the park!',
     solve: 'Find the safest shelter quickly',
     mangaText: 'WHOOSH!',
-    mangaType: 'scare'
+    mangaType: 'scare',
+    scene: 'secret_park',
+    successLine: 'You duck under the old oak. The wind howls over your head.',
+    failLine: 'The funnels lift your tail. You fight your way to the stone wall.',
+    difficulty: { riseRate: 32, fallRate: 18 }
   }
 }
 

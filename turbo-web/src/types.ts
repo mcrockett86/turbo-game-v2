@@ -185,6 +185,51 @@ export type ThreatType = 'timing' | 'combat' | 'sneak' | 'comfort';
 /** Which threat-type mini-games can occur in a zone (for HUD warning display). */
 export type ThreatKind = ThreatType | 'hazard';
 
+/**
+ * Themed minigame backdrop scenes (Sprint 8).
+ * One scene per zone family; the Sprint 8.2 renderer registers a painter per id.
+ * Data picks a scene per threat so the minigame reads as *that place*, not a generic bar.
+ */
+export type ThreatSceneId =
+  | 'street' | 'park' | 'garden' | 'apartment' | 'shelter'
+  | 'lake' | 'forest' | 'beach' | 'mountain' | 'waterfall' | 'secret_park'
+  | 'pet_shop' | 'dog_show' | 'market' | 'library' | 'cave';
+
+/** Single source of truth for valid scene ids (used by data-integrity tests). */
+export const THREAT_SCENE_IDS: readonly ThreatSceneId[] = [
+  'street', 'park', 'garden', 'apartment', 'shelter',
+  'lake', 'forest', 'beach', 'mountain', 'waterfall', 'secret_park',
+  'pet_shop', 'dog_show', 'market', 'library', 'cave',
+];
+
+/**
+ * Per-threat difficulty knobs (Sprint 8.1).
+ * All fields are optional; `resolveDifficulty(type, overrides)` merges them
+ * over per-type defaults, so data only states what differs.
+ */
+export interface ThreatDifficulty {
+  /** timing: width of the safe gap (% of the bar, 0–100) */
+  gapWidth?: number;
+  /** timing: gap sweep speed (track units/sec; the track spans 0–100) */
+  speed?: number;
+  /** combat: beats required to resolve */
+  beats?: number;
+  /** combat: pulse-ring speed (revolutions/sec) */
+  pulseSpeed?: number;
+  /** combat: width of the green target arc (0–1 of the full circle) */
+  targetWindow?: number;
+  /** sneak: detection gained per second while moving */
+  riseRate?: number;
+  /** sneak: detection lost per second while staying still */
+  fallRate?: number;
+  /** sneak: seconds at zero detection required to succeed */
+  safeHold?: number;
+  /** comfort: progress gained per second while holding */
+  holdRate?: number;
+  /** comfort: seconds before auto-fail */
+  timeLimit?: number;
+}
+
 export interface Threat {
   name: string;
   icon: string;
@@ -193,6 +238,17 @@ export interface Threat {
   solve: string;
   mangaText: string;
   mangaType: 'fight' | 'scare' | 'near-miss';
+  // ===== Sprint 8 — context layer =====
+  /** Themed backdrop scene (Sprint 8.2 paints one per id). */
+  scene: ThreatSceneId;
+  /** Themed onomatopoeia, one per successful combat beat (Sprint 8.3). */
+  beats?: string[];
+  /** Flavor line shown with the SUCCESS banner (Sprint 8.3). */
+  successLine: string;
+  /** Flavor line shown with the FAIL banner (Sprint 8.3). */
+  failLine: string;
+  /** Per-threat difficulty overrides on top of per-type defaults (Sprint 8.1). */
+  difficulty?: Partial<ThreatDifficulty>;
 }
 
 // ===== Companion Types =====

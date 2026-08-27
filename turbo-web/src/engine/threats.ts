@@ -15,7 +15,35 @@
  */
 
 import { BaseRenderer } from './render/base-renderer';
-import type { Threat, ThreatType } from '../types';
+import type { Threat, ThreatType, ThreatDifficulty } from '../types';
+
+/**
+ * Per-type difficulty defaults — the baseline every threat starts from
+ * (Sprint 8.1). Values match the pre-Sprint 8 hardcoded tuning, so existing
+ * feel is preserved; data overrides only what differs per threat.
+ */
+export function defaultDifficulty(type: ThreatType): ThreatDifficulty {
+  switch (type) {
+    case 'timing': return { gapWidth: 24, speed: 45 };
+    case 'combat': return { beats: 3, pulseSpeed: 0.7, targetWindow: 0.2 };
+    case 'sneak': return { riseRate: 30, fallRate: 20, safeHold: 3.0 };
+    case 'comfort': return { holdRate: 25, timeLimit: 6 };
+  }
+}
+
+/**
+ * Merge a threat's data-driven overrides over the per-type defaults (Sprint 8.1).
+ * Pure and side-effect free (no input mutation), so it's unit-testable.
+ */
+export function resolveDifficulty(
+  type: ThreatType,
+  overrides: Partial<ThreatDifficulty> = {},
+): ThreatDifficulty {
+  const defined = Object.fromEntries(
+    Object.entries(overrides).filter(([, v]) => v !== undefined),
+  );
+  return { ...defaultDifficulty(type), ...defined };
+}
 
 export type ThreatPhase = 'idle' | 'intro' | 'active' | 'resolved';
 
@@ -108,31 +136,27 @@ export class ThreatManager extends BaseRenderer {
     this.keysHeld.clear();
     this.sneakSafeTime = 0;
 
-    // Reset per-type state
-    this.timing = { gapX: 0, gapWidth: 20, speed: 40, direction: 1, windowMs: 500 };
-    this.combat = { beats: 0, needed: 3, pulse: 0, pulseSpeed: 0.8, targetStart: 0.4, targetEnd: 0.6 };
-    this.sneak = { detection: 0, riseRate: 30, fallRate: 20, failThreshold: 100 };
-    this.comfort = { progress: 0, rate: 25, timeLimit: 6, elapsed: 0 };
-
-    // Difficulty tweaks by threat name (light hand-tuning)
-    this.tuneDifficulty(threat);
+    // Reset per-type state from data-driven difficulty (per-type defaults
+    // ⊕ threat.difficulty overrides — Sprint 8.1)
+    const diff = resolveDifficulty(threat.type, threat.difficulty);
+    this.timing = { gapX: 0, gapWidth: diff.gapWidth ?? 24, speed: diff.speed ?? 45, direction: 1, windowMs: 500 };
+    const targetWindow = diff.targetWindow ?? 0.2;
+    this.combat = {
+      beats: 0,
+      needed: diff.beats ?? 3,
+      pulse: 0,
+      pulseSpeed: diff.pulseSpeed ?? 0.7,
+      targetStart: 0.5 - targetWindow / 2,
+      targetEnd: 0.5 + targetWindow / 2,
+    };
+    this.sneak = { detection: 0, riseRate: diff.riseRate ?? 30, fallRate: diff.fallRate ?? 20, failThreshold: 100 };
+    this.sneakSafeHold = diff.safeHold ?? 3.0;
+    this.comfort = { progress: 0, rate: diff.holdRate ?? 25, timeLimit: diff.timeLimit ?? 6, elapsed: 0 };
 
     window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('keyup', this.boundKeyUp);
     this.canvas?.addEventListener('click', this.boundCanvasClick);
     this.onStateChange?.(this.phase, threat);
-  }
-
-  private tuneDifficulty(threat: Threat): void {
-    // Combat: brave-themed threats slightly easier
-    if (threat.type === 'combat') {
-      this.combat.needed = 3;
-      this.combat.pulseSpeed = 0.7;
-    }
-    if (threat.type === 'timing') {
-      this.timing.gapWidth = 24;
-      this.timing.speed = 45;
-    }
   }
 
   /** Cancel an in-progress threat (e.g. player escaped). Counts as failure. */
@@ -316,13 +340,14 @@ export class ThreatManager extends BaseRenderer {
 
     if (s.detection >= s.failThreshold) {
       this.finish(false);
-    } else if (this.sneakSafeTime >= this.SNEAK_SAFE_DURATION) {
+    } else if (this.sneakSafeTime >= this.sneakSafeHold) {
       this.finish(true);
     }
   }
 
   private sneakSafeTime = 0;
-  private readonly SNEAK_SAFE_DURATION = 3.0; // seconds detection must stay at 0
+  /** Seconds at zero detection required to succeed (data-driven, Sprint 8.1). */
+  private sneakSafeHold = 3.0;
 
   private updateComfort(delta: number): void {
     const c = this.comfort;

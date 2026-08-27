@@ -8,9 +8,38 @@
 
 import { describe, it, expect } from 'vitest';
 import { ZONES, ITEMS, THREATS, COMPANIONS, DOGS } from '@/data';
-import type { ThreatType } from '@/types';
+import { THREAT_SCENE_IDS } from '@/types';
+import { resolveDifficulty } from '@/engine/threats';
+import type { ThreatType, ThreatSceneId } from '@/types';
 
 const VALID_THREAT_TYPES = new Set<ThreatType>(['timing', 'combat', 'sneak', 'comfort']);
+const VALID_SCENES = new Set<string>(THREAT_SCENE_IDS);
+
+/** Zone family → the scene its minigame backdrop should use (Sprint 8.1 consistency). */
+const ZONE_SCENES: Record<string, ThreatSceneId> = {
+  suburban_streets: 'street', neighborhood: 'street', home: 'street',
+  dog_park: 'park', garden: 'garden', apartment: 'apartment', shelter: 'shelter',
+  lake: 'lake', forest: 'forest', beach: 'beach', mountain: 'mountain',
+  waterfall: 'waterfall', park_secret: 'secret_park',
+  pet_store: 'pet_shop', dog_show: 'dog_show', market: 'market',
+  library: 'library', cave: 'cave',
+};
+
+/** Legacy core-type features map feature.type → threat id (see main.ts coreMap). */
+const LEGACY_CORE_MAP: Record<string, string> = {
+  traffic: 'traffic', cat: 'cat', bully: 'bully', storm: 'storm', vacuum: 'vacuum',
+};
+
+/** Zones that reference a threat (zone field, feature threat, or legacy core-type). */
+function zonesReferencing(threatId: string): string[] {
+  const zones: string[] = [];
+  for (const z of Object.values(ZONES)) {
+    const refs = [z.threat, z.doorThreat, z.legacyThreat];
+    const featureRefs = (z.features ?? []).map(f => f.threat ?? LEGACY_CORE_MAP[f.type]).filter(Boolean);
+    if (refs.includes(threatId) || featureRefs.includes(threatId)) zones.push(z.id);
+  }
+  return zones;
+}
 const VALID_ZONE_TYPES = new Set(['fp', 'tp']); // 'search' was cut 2026-08-24 — keep this in sync with ZoneType in types.ts
 const VALID_TRANSITIONS = new Set(['fade', 'wipe', 'zoom', 'slide']);
 const VALID_ITEM_CATEGORIES = new Set([
@@ -125,6 +154,48 @@ describe('data.ts integrity', () => {
       for (const valid of VALID_THREAT_TYPES) {
         expect(types.has(valid), `no threat of type ${valid}`).toBe(true);
       }
+    });
+
+    describe('Sprint 8.1 context layer', () => {
+      it('every threat has a valid scene id', () => {
+        for (const [id, t] of Object.entries(THREATS)) {
+          expect(VALID_SCENES.has(t.scene), `threat '${id}' invalid scene '${t.scene}'`).toBe(true);
+        }
+      });
+
+      it('every threat has success and fail flavor lines', () => {
+        for (const [id, t] of Object.entries(THREATS)) {
+          expect(t.successLine, `threat '${id}' missing successLine`).toBeTruthy();
+          expect(t.failLine, `threat '${id}' missing failLine`).toBeTruthy();
+        }
+      });
+
+      it('combat beats match the effective beat count', () => {
+        for (const [id, t] of Object.entries(THREATS)) {
+          if (t.type !== 'combat') continue;
+          if (!t.beats) continue; // beats are optional; 8.3 will render them when present
+          const needed = resolveDifficulty('combat', t.difficulty).beats ?? 3;
+          expect(t.beats.length, `threat '${id}' has ${t.beats.length} beat words but needs ${needed}`).toBe(needed);
+          for (const word of t.beats) {
+            expect(typeof word, `threat '${id}' beat word not a string`).toBe('string');
+            expect(word.trim().length, `threat '${id}' empty beat word`).toBeGreaterThan(0);
+          }
+        }
+      });
+
+      it('scene matches at least one referencing zone family', () => {
+        // A threat can trigger in more than one zone (e.g. treasure_guardian at the
+        // cave exit AND in the secret park); its scene must fit at least one of them.
+        for (const [id, t] of Object.entries(THREATS)) {
+          const zones = zonesReferencing(id);
+          if (zones.length === 0) continue; // covered by the reachability test below
+          const expectedScenes = zones.map(z => ZONE_SCENES[z]).filter(Boolean);
+          expect(
+            expectedScenes.includes(t.scene),
+            `threat '${id}' scene '${t.scene}' fits none of its zones ${zones.join(', ')} (${expectedScenes.join(', ')})`,
+          ).toBe(true);
+        }
+      });
     });
   });
 

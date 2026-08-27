@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ThreatManager, type ThreatPhase } from '@/engine/threats';
+import { ThreatManager, defaultDifficulty, resolveDifficulty, type ThreatPhase } from '@/engine/threats';
 import type { Threat } from '@/types';
 
 function makeCanvas(): HTMLCanvasElement {
@@ -35,9 +35,9 @@ function makeCanvas(): HTMLCanvasElement {
 }
 
 const sampleThreats: Record<string, Threat> = {
-  timing: { name: 'Traffic', icon: '🚗', type: 'timing', description: '', solve: '', mangaText: '', mangaType: 'near-miss' },
-  combat: { name: 'Mean Cat', icon: '🐱', type: 'combat', description: '', solve: '', mangaText: '', mangaType: 'fight' },
-  comfort: { name: 'Storm', icon: '⛈️', type: 'comfort', description: '', solve: '', mangaText: '', mangaType: 'scare' },
+  timing: { name: 'Traffic', icon: '🚗', type: 'timing', description: '', solve: '', mangaText: '', mangaType: 'near-miss', scene: 'street', successLine: '', failLine: '' },
+  combat: { name: 'Mean Cat', icon: '🐱', type: 'combat', description: '', solve: '', mangaText: '', mangaType: 'fight', scene: 'street', successLine: '', failLine: '' },
+  comfort: { name: 'Storm', icon: '⛈️', type: 'comfort', description: '', solve: '', mangaText: '', mangaType: 'scare', scene: 'apartment', successLine: '', failLine: '' },
 };
 
 describe('ThreatManager', () => {
@@ -152,5 +152,53 @@ describe('ThreatManager', () => {
     expect(tm.isBusy).toBe(true); // intro
     tm.update(2, 0);
     expect(tm.isBusy).toBe(true); // active
+  });
+});
+
+describe('data-driven difficulty (Sprint 8.1)', () => {
+  it('defaultDifficulty provides per-type baselines', () => {
+    expect(defaultDifficulty('timing')).toEqual({ gapWidth: 24, speed: 45 });
+    expect(defaultDifficulty('combat')).toEqual({ beats: 3, pulseSpeed: 0.7, targetWindow: 0.2 });
+    expect(defaultDifficulty('sneak')).toEqual({ riseRate: 30, fallRate: 20, safeHold: 3.0 });
+    expect(defaultDifficulty('comfort')).toEqual({ holdRate: 25, timeLimit: 6 });
+  });
+
+  it('resolveDifficulty merges overrides over defaults', () => {
+    const d = resolveDifficulty('timing', { gapWidth: 16, speed: 60 });
+    expect(d).toEqual({ gapWidth: 16, speed: 60 });
+    // Partial override: unspecified knobs keep their defaults
+    const d2 = resolveDifficulty('combat', { beats: 4 });
+    expect(d2).toEqual({ beats: 4, pulseSpeed: 0.7, targetWindow: 0.2 });
+  });
+
+  it('resolveDifficulty ignores undefined override values and does not mutate input', () => {
+    const overrides = { gapWidth: undefined, speed: 50 };
+    const d = resolveDifficulty('timing', overrides);
+    expect(d).toEqual({ gapWidth: 24, speed: 50 });
+    expect(overrides).toEqual({ gapWidth: undefined, speed: 50 }); // untouched
+  });
+
+  it('start() applies threat.difficulty overrides to live state', () => {
+    const tm = new ThreatManager();
+    tm.init(makeCanvas());
+    const hard: Threat = { ...sampleThreats.combat, difficulty: { beats: 4, targetWindow: 0.16 } };
+    tm.start(hard);
+    const combat = (tm as any).combat;
+    expect(combat.needed).toBe(4);
+    expect(combat.targetStart).toBeCloseTo(0.5 - 0.16 / 2);
+    expect(combat.targetEnd).toBeCloseTo(0.5 + 0.16 / 2);
+    tm.dispose();
+  });
+
+  it('start() without difficulty keeps per-type defaults', () => {
+    const tm = new ThreatManager();
+    tm.init(makeCanvas());
+    const sneakThreat: Threat = { name: 'Vacuum', icon: '🤖', type: 'sneak', description: '', solve: '', mangaText: '', mangaType: 'scare', scene: 'shelter', successLine: '', failLine: '' };
+    tm.start(sneakThreat);
+    const sneak = (tm as any).sneak;
+    expect(sneak.riseRate).toBe(30);
+    expect(sneak.fallRate).toBe(20);
+    expect((tm as any).sneakSafeHold).toBe(3.0);
+    tm.dispose();
   });
 });
