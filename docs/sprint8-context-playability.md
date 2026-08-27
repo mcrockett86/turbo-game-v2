@@ -96,6 +96,13 @@ Per Mike (2026-08-26): *not* a feature-addition sprint. Improve the context laye
 
 **DoD:** No two adjacent-zone threats look identical; every minigame has a zone-specific backdrop + actor; perf flat; tests green.
 
+**Status (2026-08-26): COMPLETE.**
+- `engine/render/threat-scenes.ts` (1760 lines): 16 backdrops + 36 themed actors + per-type generic fallbacks, plain canvas calls each frame (no Path2D — jsdom-safe), no per-frame allocation (deterministic `frac()` pseudo-random instead of `Math.random`).
+- `data.ts`: all 40 threats carry an `actor` id (36 unique actor ids, some shared: wave×2, cat×2, squirrel×2, crowd×2).
+- `threats.ts`: `drawThreatScene` replaces the flat dark backdrop; new `sceneTime` animation clock (reset on start, advanced in update); scene-aware layout (header 0.10H/0.165H, actor stage 0.33H, mechanics 0.68H, solve hint 0.95H hidden while resolved, outcome pill 0.85H).
+- Tests: `tests/unit/threat-scenes.test.ts` (6 tests: all 40 threats × 3 sizes × 3 times, every actor, every scene, 3 fallback paths) + data.test.ts actor-validity + every-actor-used checks. Unit 101/101, E2E 69/69, tsc clean.
+- **Bundle note (honest):** build is 57.89 kB gz (baseline 46.53 at `3b50f1c`, 49.45 after 8.1) — the scene module costs +8.44 kB gz. The ≤ ~45 kB DoD line was already aspirational before this milestone; flag for Mike: acceptable, or trim actor detail later.
+
 ---
 
 ### 8.3 — Beat theming + outcome flavor + companion reactions

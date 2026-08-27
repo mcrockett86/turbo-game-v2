@@ -25,6 +25,8 @@ function makeCanvas(): HTMLCanvasElement {
     clearRect: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), setTransform: vi.fn(),
     arc: vi.fn(), fill: vi.fn(), stroke: vi.fn(), save: vi.fn(), restore: vi.fn(),
     moveTo: vi.fn(), lineTo: vi.fn(), closePath: vi.fn(),
+    ellipse: vi.fn(), quadraticCurveTo: vi.fn(), translate: vi.fn(), rotate: vi.fn(),
+    createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
     set fillStyle(v: unknown) {}, set strokeStyle(v: unknown) {},
     set lineWidth(v: unknown) {}, set globalAlpha(v: unknown) {},
     set font(v: unknown) {}, set textAlign(v: unknown) {},

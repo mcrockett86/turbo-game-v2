@@ -8,12 +8,13 @@
 
 import { describe, it, expect } from 'vitest';
 import { ZONES, ITEMS, THREATS, COMPANIONS, DOGS } from '@/data';
-import { THREAT_SCENE_IDS } from '@/types';
+import { THREAT_SCENE_IDS, THREAT_ACTOR_IDS } from '@/types';
 import { resolveDifficulty } from '@/engine/threats';
 import type { ThreatType, ThreatSceneId } from '@/types';
 
 const VALID_THREAT_TYPES = new Set<ThreatType>(['timing', 'combat', 'sneak', 'comfort']);
 const VALID_SCENES = new Set<string>(THREAT_SCENE_IDS);
+const VALID_ACTORS = new Set<string>(THREAT_ACTOR_IDS);
 
 /** Zone family → the scene its minigame backdrop should use (Sprint 8.1 consistency). */
 const ZONE_SCENES: Record<string, ThreatSceneId> = {
@@ -194,6 +195,20 @@ describe('data.ts integrity', () => {
             expectedScenes.includes(t.scene),
             `threat '${id}' scene '${t.scene}' fits none of its zones ${zones.join(', ')} (${expectedScenes.join(', ')})`,
           ).toBe(true);
+        }
+      });
+
+      it('every threat has a valid stage actor (Sprint 8.2)', () => {
+        for (const [id, t] of Object.entries(THREATS)) {
+          expect(t.actor, `threat '${id}' missing actor`).toBeTruthy();
+          expect(VALID_ACTORS.has(t.actor!), `threat '${id}' invalid actor '${t.actor}'`).toBe(true);
+        }
+      });
+
+      it('every registered actor id is used by at least one threat', () => {
+        const used = new Set(Object.values(THREATS).map(t => t.actor));
+        for (const actor of THREAT_ACTOR_IDS) {
+          expect(used.has(actor), `actor '${actor}' is registered but no threat uses it`).toBe(true);
         }
       });
     });

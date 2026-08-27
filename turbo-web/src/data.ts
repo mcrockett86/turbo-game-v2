@@ -1198,6 +1198,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'SCREEEECH!',
     mangaType: 'near-miss',
     scene: 'street',
+    actor: 'car',
     successLine: 'You slip through the gap just as the brakes screech.',
     failLine: 'The car swerves around you — you bolt into the bushes, heart pounding.',
     difficulty: { gapWidth: 22, speed: 48 }
@@ -1211,6 +1212,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'SCRATCH!',
     mangaType: 'fight',
     scene: 'street',
+    actor: 'cat',
     beats: ['HISS!', 'SCREECH!', 'SCATTER!'],
     successLine: 'The cat bolts up a fence, tail puffed to twice its size.',
     failLine: 'It rakes your ear. You slink away with a sting and a grudge.'
@@ -1224,6 +1226,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'GRRR!',
     mangaType: 'fight',
     scene: 'street',
+    actor: 'bully',
     beats: ['GROWL!', 'SNAP!', 'BACK OFF!'],
     successLine: 'The bully breaks eye contact first and pads off, tail low.',
     failLine: 'You back away slowly — smart. That\'s how you survive.',
@@ -1238,6 +1241,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'BOOM!',
     mangaType: 'scare',
     scene: 'apartment',
+    actor: 'storm',
     successLine: 'Thunder rumbles overhead, muffled by the ceiling. Almost cozy.',
     failLine: 'Lightning pops right outside the window. You shake, ears flat.'
   },
@@ -1250,6 +1254,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'VRRRRR!',
     mangaType: 'scare',
     scene: 'shelter',
+    actor: 'vacuum',
     successLine: 'The vacuum roars past — you were a statue. It loses interest.',
     failLine: 'It corners you! You scramble up the shelving, ears ringing.',
     difficulty: { riseRate: 35 }
@@ -1263,6 +1268,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'THUMP!',
     mangaType: 'near-miss',
     scene: 'street',
+    actor: 'mailman',
     successLine: 'You intercept the package before it hits the porch. The scent says: home.',
     failLine: 'The carrier scoops it up and walks on. The scent fades.',
     difficulty: { gapWidth: 26, speed: 42 }
@@ -1276,6 +1282,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'SPRINKLE!',
     mangaType: 'scare',
     scene: 'garden',
+    actor: 'sprinkler',
     successLine: 'The sprinkler swings past. You stay dry — and proud.',
     failLine: 'Soggy. Soaking. You drip behind the rose bush.',
     difficulty: { riseRate: 28, fallRate: 22 }
@@ -1289,6 +1296,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'CLANG!',
     mangaType: 'near-miss',
     scene: 'street',
+    actor: 'crane',
     successLine: 'The crane arm swings wide. You\'re already in its shadow.',
     failLine: 'Dirt thuds down where you stood. You scatter, nose low.',
     difficulty: { gapWidth: 20, speed: 52 }
@@ -1302,6 +1310,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'DOOOOONG!',
     mangaType: 'scare',
     scene: 'park',
+    actor: 'truck',
     successLine: 'You catch the truck mid-song. The window smells like vanilla.',
     failLine: 'It rounds the corner and goes. You chase the jingle three blocks.',
     difficulty: { holdRate: 22, timeLimit: 7 }
@@ -1315,6 +1324,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'SQUEAK!',
     mangaType: 'near-miss',
     scene: 'forest',
+    actor: 'squirrel',
     successLine: 'It freezes, eyes wide. Then it\'s gone up a pine, safe.',
     failLine: 'It darts to a higher branch, chittering at you. Rude.',
     difficulty: { riseRate: 25, fallRate: 25 }
@@ -1328,6 +1338,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'WOOF!',
     mangaType: 'fight',
     scene: 'street',
+    actor: 'dog',
     beats: ['WOOF!', 'WOOF-WOOF!'],
     successLine: 'You bark back. It wags. A new friend for the road?',
     failLine: 'It takes your silence as a dare and charges. You zig-zag away.',
@@ -1342,6 +1353,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'WHOOSH!',
     mangaType: 'scare',
     scene: 'park',
+    actor: 'drain',
     successLine: 'You grab the toy mid-swirl. The drain spits it out to you.',
     failLine: 'The current wins. It swirls down, gone to the river.',
     difficulty: { gapWidth: 20, speed: 55 }
@@ -1356,6 +1368,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'SPLASH!',
     mangaType: 'scare',
     scene: 'lake',
+    actor: 'wave',
     successLine: 'You leap the ripple. Water clings to your paws, then flies off.',
     failLine: 'The ripple catches your haunches. You shake off a lake\'s worth.',
     difficulty: { gapWidth: 22, speed: 48 }
@@ -1369,6 +1382,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'MEOW!',
     mangaType: 'fight',
     scene: 'pet_shop',
+    actor: 'cat',
     beats: ['MEOW!', 'HUFF!', 'CLINK!'],
     successLine: 'The cat swats a shelf, scolds the room, and regales itself.',
     failLine: 'It drops a fish bowl. The clerk gasps. You feel small.'
@@ -1382,6 +1396,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'POSE!',
     mangaType: 'near-miss',
     scene: 'dog_show',
+    actor: 'judge',
     successLine: 'Perfect pose. The judge\'s pencil pauses — a real compliment.',
     failLine: 'You break form. The crowd murmurs. One less ribbon for you.',
     difficulty: { gapWidth: 18, speed: 50 }
@@ -1395,6 +1410,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'HOWL!',
     mangaType: 'fight',
     scene: 'forest',
+    actor: 'wolf',
     beats: ['SNARL!', 'HOWL!', 'YIELD!'],
     successLine: 'It holds your gaze, then drops its head and slips into the pines.',
     failLine: 'Its shadow falls over you. You back away one slow step at a time.',
@@ -1409,6 +1425,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'CLICK!',
     mangaType: 'scare',
     scene: 'beach',
+    actor: 'crab',
     successLine: 'It pinches the sand, not you. You back off, shell to shell.',
     failLine: 'A claw snaps your ear. You hop around the dune in a circle.',
     difficulty: { riseRate: 30, fallRate: 18 }
@@ -1422,6 +1439,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'CLACK!',
     mangaType: 'near-miss',
     scene: 'mountain',
+    actor: 'goat',
     successLine: 'It rounds the boulder at full gallop. You\'re already under the ledge.',
     failLine: 'Hooves thunder past. You dive into the scree — and slide with it.',
     difficulty: { gapWidth: 18, speed: 58 }
@@ -1435,6 +1453,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'HISS!',
     mangaType: 'scare',
     scene: 'garden',
+    actor: 'snake',
     successLine: 'It unhooks from the rose and vanishes into the fence. No scales lost.',
     failLine: 'It strikes at your tail. You yelp and scramble over the hedge.',
     difficulty: { riseRate: 24, fallRate: 24 }
@@ -1448,6 +1467,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'SHHH!',
     mangaType: 'scare',
     scene: 'library',
+    actor: 'shelf',
     successLine: 'You settle under the reading nook. Even the dust motes hush.',
     failLine: 'The librarian\'s finger points. You tiptoe out, tail between.',
     difficulty: { holdRate: 20, timeLimit: 8 }
@@ -1461,6 +1481,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'MOVE!',
     mangaType: 'near-miss',
     scene: 'market',
+    actor: 'crowd',
     successLine: 'You weave through the gap between cabbages and fish. Clean.',
     failLine: 'A fish basket clips your back. You scatter, scales everywhere.',
     difficulty: { gapWidth: 20, speed: 54 }
@@ -1474,6 +1495,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'SQUEAK!',
     mangaType: 'fight',
     scene: 'park',
+    actor: 'squirrel',
     beats: ['SQUEAK!', 'SQUIRM!', 'SCATTER!'],
     successLine: 'The army scatters up the oak in a brown storm. Acorns rain.',
     failLine: 'They mob your tail. You bark, they shriek, the park is chaos.',
@@ -1489,6 +1511,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'FOG!',
     mangaType: 'scare',
     scene: 'lake',
+    actor: 'fog',
     successLine: 'You follow the scent until the fog thins into morning light.',
     failLine: 'You circle the same birch three times. The fog wins a round.',
     difficulty: { holdRate: 22, timeLimit: 8 }
@@ -1502,6 +1525,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'ZAP!',
     mangaType: 'scare',
     scene: 'mountain',
+    actor: 'lightning',
     successLine: 'You reach the cave mouth as the bolt takes the peak.',
     failLine: 'The flash catches you open on the scree. You shake for a minute.',
     difficulty: { gapWidth: 16, speed: 60 }
@@ -1515,6 +1539,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'WHOOSH!',
     mangaType: 'scare',
     scene: 'lake',
+    actor: 'flood',
     successLine: 'You reach the ledge just as the water surges. Dry and safe.',
     failLine: 'The flood catches your paws. You swim — and it\'s colder than it looks.',
     difficulty: { riseRate: 40, fallRate: 15, safeHold: 4 }
@@ -1528,6 +1553,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'RUMBLE!',
     mangaType: 'scare',
     scene: 'street',
+    actor: 'quake',
     successLine: 'You find your balance as the windows rattle. You didn\'t flinch.',
     failLine: 'The floor lurches. You crash into a doorframe — a very rude doorframe.',
     difficulty: { gapWidth: 18, speed: 56 }
@@ -1542,6 +1568,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'GRAB!',
     mangaType: 'fight',
     scene: 'cave',
+    actor: 'raccoon',
     beats: ['GRAZE!', 'GRAB!', 'GONE!'],
     successLine: 'You pounce. The raccoon drops the scrap and vanishes into the dark.',
     failLine: 'It vanishes with your snack. You hear it munching, smug.',
@@ -1556,6 +1583,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'HOOT!',
     mangaType: 'scare',
     scene: 'waterfall',
+    actor: 'owl',
     successLine: 'It blinks, slow as a waterfall. You blink back. An understanding is reached.',
     failLine: 'You startle. It hoots — and the whole ravine answers.',
     difficulty: { holdRate: 18, timeLimit: 9 }
@@ -1569,6 +1597,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'PRANCE!',
     mangaType: 'near-miss',
     scene: 'waterfall',
+    actor: 'deer',
     successLine: 'They part around you like a river around a stone. Silent.',
     failLine: 'You spook the herd. They stampede, and the moss shakes.',
     difficulty: { riseRate: 22, fallRate: 26 }
@@ -1583,6 +1612,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'CLANG!',
     mangaType: 'fight',
     scene: 'cave',
+    actor: 'guardian',
     beats: ['CLANG!', 'FLASH!', 'WORTHY!', 'OPEN!'],
     successLine: 'The guardian steps aside. The treasure glints, patient and old.',
     failLine: 'Its blade rings the stone. You live to try again — probably.',
@@ -1598,6 +1628,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'SPLASH!',
     mangaType: 'fight',
     scene: 'lake',
+    actor: 'monster',
     beats: ['SPLASH!', 'SURGE!', 'STILL!'],
     successLine: 'The water calms. Something huge exhales beneath you — and passes.',
     failLine: 'A fin the size of a fence slams the lake. You swim. You swim hard.',
@@ -1612,6 +1643,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'DING!',
     mangaType: 'near-miss',
     scene: 'pet_shop',
+    actor: 'bell',
     successLine: 'You ring it once, cleanly. The shop exhales. Peace.',
     failLine: 'It rings and rings. The cat\'s ears swivel like satellites.',
     difficulty: { gapWidth: 24, speed: 44 }
@@ -1625,6 +1657,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'ROAR!',
     mangaType: 'fight',
     scene: 'dog_show',
+    actor: 'crowd',
     beats: ['WOOF!', 'POSE!', 'BOW!'],
     successLine: 'The crowd roars. You hold your pose — and it\'s for you.',
     failLine: 'The noise swells. You blink. One ribbon slips off your chest.'
@@ -1638,6 +1671,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'PRICK!',
     mangaType: 'scare',
     scene: 'forest',
+    actor: 'thorn',
     successLine: 'You find the gap in the brambles and slip through uncut.',
     failLine: 'A thorn hooks your collar. You twist free, brambles in your fur.',
     difficulty: { riseRate: 26, fallRate: 22 }
@@ -1651,6 +1685,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'CRASH!',
     mangaType: 'scare',
     scene: 'beach',
+    actor: 'wave',
     successLine: 'You spring to the dune as the wave crashes. Sand, not seawater.',
     failLine: 'The wave takes your legs. You\'re a sock in a washing machine.',
     difficulty: { gapWidth: 20, speed: 55 }
@@ -1664,6 +1699,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'CLATTER!',
     mangaType: 'scare',
     scene: 'mountain',
+    actor: 'rockfall',
     successLine: 'You roll under the boulder\'s shadow. Dust settles. You\'re still here.',
     failLine: 'A stone clips your shoulder. You scramble up the slope, ears ringing.',
     difficulty: { gapWidth: 17, speed: 57 }
@@ -1677,6 +1713,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'BUZZ!',
     mangaType: 'scare',
     scene: 'garden',
+    actor: 'insect',
     successLine: 'It pauses, antennae twitching, and crawls on without you.',
     failLine: 'It lands on your nose. You sneeze. It sneezes back. You bolt.',
     difficulty: { riseRate: 20, fallRate: 28 }
@@ -1690,6 +1727,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'BOO!',
     mangaType: 'scare',
     scene: 'library',
+    actor: 'spirit',
     successLine: 'You show your paws are empty. The spirit nods and shelves a book.',
     failLine: 'The shelves creak. Something cold follows you to the door.',
     difficulty: { holdRate: 20, timeLimit: 8 }
@@ -1703,6 +1741,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'WHOOSH!',
     mangaType: 'scare',
     scene: 'market',
+    actor: 'fire',
     successLine: 'You grab the bucket and toss it. The stall\'s saved. The vendor hugs your head.',
     failLine: 'The flames leap the crate. You back off, whiskers singed.',
     difficulty: { gapWidth: 19, speed: 52 }
@@ -1716,6 +1755,7 @@ export const THREATS: Record<string, Threat> = {
     mangaText: 'WHOOSH!',
     mangaType: 'scare',
     scene: 'secret_park',
+    actor: 'tornado',
     successLine: 'You duck under the old oak. The wind howls over your head.',
     failLine: 'The funnels lift your tail. You fight your way to the stone wall.',
     difficulty: { riseRate: 32, fallRate: 18 }

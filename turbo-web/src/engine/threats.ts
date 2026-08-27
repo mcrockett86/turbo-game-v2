@@ -15,6 +15,7 @@
  */
 
 import { BaseRenderer } from './render/base-renderer';
+import { drawThreatScene } from './render/threat-scenes';
 import type { Threat, ThreatType, ThreatDifficulty } from '../types';
 
 /**
@@ -86,6 +87,8 @@ export class ThreatManager extends BaseRenderer {
   private flashSuccess = false;
   currentThreat: Threat | null = null;
   currentType: ThreatType | null = null;
+  // Animation clock for the themed scene (Sprint 8.2) — drives actor motion.
+  private sceneTime = 0;
 
   // Per-type state
   private timing: TimingState = { gapX: 0, gapWidth: 20, speed: 40, direction: 1, windowMs: 500 };
@@ -135,6 +138,7 @@ export class ThreatManager extends BaseRenderer {
     this.introTimer = this.INTRO_DURATION;
     this.keysHeld.clear();
     this.sneakSafeTime = 0;
+    this.sceneTime = 0;
 
     // Reset per-type state from data-driven difficulty (per-type defaults
     // ⊕ threat.difficulty overrides — Sprint 8.1)
@@ -173,6 +177,9 @@ export class ThreatManager extends BaseRenderer {
 
   protected onUpdate(delta: number, _time: number): void {
     if (this.phase === 'idle') return;
+
+    // Animate the themed scene (backdrop drift + actor motion) while active.
+    this.sceneTime += delta;
 
     // 7.9 decay transient hit/shake/flash timers regardless of phase
     if (this.shakeTimer > 0) this.shakeTimer = Math.max(0, this.shakeTimer - delta);
@@ -219,32 +226,33 @@ export class ThreatManager extends BaseRenderer {
   private renderThreatContent(ctx: CanvasRenderingContext2D, W: number, H: number): void {
     if (!this.currentThreat) return;
 
-    // Dark backdrop
-    ctx.fillStyle = 'rgba(10, 10, 25, 0.88)';
-    ctx.fillRect(0, 0, W, H);
+    // Themed scene: zone backdrop + stage actor + readability vignette (Sprint 8.2)
+    drawThreatScene(ctx, this.currentThreat, this.sceneTime, W, H);
 
-    // Threat header
+    // Threat header (top band, drawn over the scene for readability)
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px sans-serif';
+    ctx.font = 'bold 26px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${this.currentThreat.icon} ${this.currentThreat.name}`, W / 2, H / 2 - 140);
+    ctx.fillText(`${this.currentThreat.icon} ${this.currentThreat.name}`, W / 2, H * 0.10);
 
-    ctx.font = '14px sans-serif';
-    ctx.fillStyle = '#bbb';
-    ctx.fillText(this.currentThreat.description, W / 2, H / 2 - 110);
-
-    // Solve hint
     ctx.font = '13px sans-serif';
-    ctx.fillStyle = '#888';
-    ctx.fillText(this.currentThreat.solve, W / 2, H / 2 + 150);
+    ctx.fillStyle = '#c8cede';
+    ctx.fillText(this.currentThreat.description, W / 2, H * 0.165);
+
+    // Solve hint (bottom band; hidden once the outcome banner is up)
+    if (this.phase !== 'resolved') {
+      ctx.font = '13px sans-serif';
+      ctx.fillStyle = '#9aa3b8';
+      ctx.fillText(this.currentThreat.solve, W / 2, H * 0.95);
+    }
 
     if (this.phase === 'intro') {
       // Big pulsing "Press SPACE"
       const pulse = 0.7 + 0.3 * Math.sin(this.introTimer * 8);
       ctx.globalAlpha = pulse;
       ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 32px sans-serif';
-      ctx.fillText('PRESS SPACE', W / 2, H / 2 + 20);
+      ctx.font = 'bold 30px sans-serif';
+      ctx.fillText('PRESS SPACE', W / 2, H * 0.50);
       ctx.globalAlpha = 1;
       return;
     }
@@ -264,7 +272,7 @@ export class ThreatManager extends BaseRenderer {
       const w = ctx.measureText(label).width + 44;
       const h = 48;
       const px = W / 2 - w / 2;
-      const py = H / 2 + 70;
+      const py = H * 0.85;
       ctx.globalAlpha = 0.96;
       ctx.fillStyle = s ? 'rgba(34,80,34,0.92)' : 'rgba(90,26,26,0.92)';
       ctx.beginPath();
@@ -368,8 +376,8 @@ export class ThreatManager extends BaseRenderer {
 
   private renderTiming(ctx: CanvasRenderingContext2D, W: number, H: number): void {
     const t = this.timing;
-    const barY = H / 2 - 20;
-    const barW = 500;
+    const barY = H * 0.68;
+    const barW = Math.min(500, W - 40);
     const barH = 40;
     const barX = W / 2 - barW / 2;
 
@@ -396,14 +404,14 @@ export class ThreatManager extends BaseRenderer {
     // Instructions
     ctx.fillStyle = '#fff';
     ctx.font = '16px sans-serif';
-    ctx.fillText('Press SPACE when the red dot is in the green zone!', W / 2, barY - 40);
+    ctx.fillText('Press SPACE when the red dot is in the green zone!', W / 2, barY + barH / 2 + 24);
   }
 
   private renderCombat(ctx: CanvasRenderingContext2D, W: number, H: number): void {
     const c = this.combat;
     const cx = W / 2;
-    const cy = H / 2 - 10;
-    const R = 90;
+    const cy = H * 0.68;
+    const R = Math.min(90, H * 0.24);
 
     // Outer ring
     ctx.strokeStyle = '#444';
@@ -438,14 +446,14 @@ export class ThreatManager extends BaseRenderer {
 
     ctx.font = '14px sans-serif';
     ctx.fillStyle = '#aaa';
-    ctx.fillText('Press SPACE when the yellow dot hits the green arc', cx, cy + R + 50);
+    ctx.fillText('Press SPACE when the yellow dot hits the green arc', cx, cy - R - 14);
   }
 
   private renderSneak(ctx: CanvasRenderingContext2D, W: number, H: number): void {
     const s = this.sneak;
     const barW = 400;
     const barX = W / 2 - barW / 2;
-    const barY = H / 2 - 10;
+    const barY = H * 0.68;
 
     // Detection bar background
     ctx.fillStyle = '#2a2a3e';
@@ -474,7 +482,7 @@ export class ThreatManager extends BaseRenderer {
     const c = this.comfort;
     const barW = 400;
     const barX = W / 2 - barW / 2;
-    const barY = H / 2 - 10;
+    const barY = H * 0.68;
 
     // Time bar
     const timePct = 1 - c.elapsed / c.timeLimit;

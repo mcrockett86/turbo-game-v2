@@ -203,6 +203,37 @@ export const THREAT_SCENE_IDS: readonly ThreatSceneId[] = [
 ];
 
 /**
+ * Themed actor drawn in the minigame stage (Sprint 8.2). Each id maps to a
+ * vector-drawn character in `engine/render/threat-scenes.ts`. Optional on
+ * Threat so data can omit it and fall back to a per-type generic actor.
+ */
+export type ThreatActorId =
+  // street / urban
+  | 'car' | 'crane' | 'truck' | 'mailman' | 'bully' | 'judge' | 'quake'
+  // animals
+  | 'cat' | 'dog' | 'wolf' | 'raccoon' | 'deer' | 'goat' | 'squirrel' | 'crab'
+  | 'snake' | 'insect' | 'owl'
+  // creatures / fantasy
+  | 'guardian' | 'monster' | 'spirit'
+  // weather / nature forces
+  | 'storm' | 'fog' | 'lightning' | 'flood' | 'tornado' | 'fire'
+  // machines / objects
+  | 'vacuum' | 'sprinkler' | 'drain' | 'wave' | 'bell' | 'thorn' | 'rockfall'
+  // environments
+  | 'shelf' | 'crowd';
+
+/** Single source of truth for valid actor ids (used by data-integrity tests). */
+export const THREAT_ACTOR_IDS: readonly ThreatActorId[] = [
+  'car', 'crane', 'truck', 'mailman', 'bully', 'judge', 'quake',
+  'cat', 'dog', 'wolf', 'raccoon', 'deer', 'goat', 'squirrel', 'crab',
+  'snake', 'insect', 'owl',
+  'guardian', 'monster', 'spirit',
+  'storm', 'fog', 'lightning', 'flood', 'tornado', 'fire',
+  'vacuum', 'sprinkler', 'drain', 'wave', 'bell', 'thorn', 'rockfall',
+  'shelf', 'crowd',
+];
+
+/**
  * Per-threat difficulty knobs (Sprint 8.1).
  * All fields are optional; `resolveDifficulty(type, overrides)` merges them
  * over per-type defaults, so data only states what differs.
@@ -249,6 +280,8 @@ export interface Threat {
   failLine: string;
   /** Per-threat difficulty overrides on top of per-type defaults (Sprint 8.1). */
   difficulty?: Partial<ThreatDifficulty>;
+  /** Themed stage actor (Sprint 8.2). Falls back to a per-type generic when omitted. */
+  actor?: ThreatActorId;
 }
 
 // ===== Companion Types =====
