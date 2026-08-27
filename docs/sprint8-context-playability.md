@@ -117,6 +117,15 @@ Per Mike (2026-08-26): *not* a feature-addition sprint. Improve the context laye
 
 **DoD:** Every resolution is a *story beat* (themed words + flavor line + companion voice). Tests green.
 
+**Status (2026-08-27): COMPLETE.**
+- `threats.ts`: themed beat popup per combat hit — `beats[]` word per successful hit, final hit lands the `mangaText` (big gold manga-style text, outlined, rotated, scale-up + fade over 0.7s, driven by the existing `sceneTime` clock; no new state machine).
+- Outcome pill: SUCCESS/FAIL label + the threat's `successLine`/`failLine` rendered inside the pill (2-line layout, clamped to viewport) — the resolution is now a story beat, not a generic badge.
+- `engine/companion-reactions.ts` (new, pure module): `pickReactionLine(companion, success, seed)` — deterministic djb2-seeded pool pick (threat id + outcome); null-safe for missing companion/pool.
+- `data.ts`: all 15 companions ship `reactions.success` + `reactions.fail` pools (2 lines each, voice-matched).
+- `main.ts`: on `onResolve`, the active companion voices the outcome via the existing dialogue overlay (+ bark sfx, audio duck). Combat speaks after the manga cutaway (`mangaOverlay.onDone`) so the lines don't fight over the panel.
+- Tests: `tests/unit/companion-reactions.test.ts` (6: determinism, pool membership, null-safety, solo pool, data coverage for all companions, seed stability) + `tests/companion-reactions.spec.ts` (3 E2E: companion line appears on success, no crash with no companion + threat still resolves, fail-side line appears).
+- Verification: unit 107/107, E2E 72/72 (8.4 min), tsc clean, build 59.82 kB gz (was 57.89 at 8.2; +1.93 kB = reaction strings + beat popup). Bundle is past the ~45 kB aspirational DoD line — flagged to Mike with the 8.2 note; no trim requested.
+
 ---
 
 ### 8.4 — FP zone interaction & story-thread pass

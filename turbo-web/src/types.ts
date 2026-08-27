@@ -292,6 +292,14 @@ export interface Companion {
   breed: string;
   trait: string;
   dialogue: string[];
+  /**
+   * Short reaction lines spoken after a threat resolves (Sprint 8.3).
+   * Pools, not per-zone keys — the zone context is carried by the threat's
+   * own successLine/failLine; the companion just voices the moment.
+   * Selection is deterministic (seeded by threat + outcome) so tests can
+   * assert the exact line.
+   */
+  reactions?: { success?: string[]; fail?: string[] };
   color: string;
   accentColor: string;
   met: boolean;

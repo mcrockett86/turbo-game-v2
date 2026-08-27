@@ -89,6 +89,9 @@ export class ThreatManager extends BaseRenderer {
   currentType: ThreatType | null = null;
   // Animation clock for the themed scene (Sprint 8.2) — drives actor motion.
   private sceneTime = 0;
+  // Sprint 8.3: transient combat beat word (manga-style popup, ~0.7s).
+  private beatPopup: { text: string; t: number } | null = null;
+  private static readonly BEAT_POPUP_DURATION = 0.7;
 
   // Per-type state
   private timing: TimingState = { gapX: 0, gapWidth: 20, speed: 40, direction: 1, windowMs: 500 };
@@ -139,6 +142,7 @@ export class ThreatManager extends BaseRenderer {
     this.keysHeld.clear();
     this.sneakSafeTime = 0;
     this.sceneTime = 0;
+    this.beatPopup = null;
 
     // Reset per-type state from data-driven difficulty (per-type defaults
     // ⊕ threat.difficulty overrides — Sprint 8.1)
@@ -180,6 +184,12 @@ export class ThreatManager extends BaseRenderer {
 
     // Animate the themed scene (backdrop drift + actor motion) while active.
     this.sceneTime += delta;
+
+    // Sprint 8.3: advance the combat beat popup and expire it.
+    if (this.beatPopup) {
+      this.beatPopup.t += delta;
+      if (this.beatPopup.t >= ThreatManager.BEAT_POPUP_DURATION) this.beatPopup = null;
+    }
 
     // 7.9 decay transient hit/shake/flash timers regardless of phase
     if (this.shakeTimer > 0) this.shakeTimer = Math.max(0, this.shakeTimer - delta);
@@ -268,11 +278,18 @@ export class ThreatManager extends BaseRenderer {
     if (this.phase === 'resolved') {
       const s = this.flashSuccess;
       const label = s ? '✓ SUCCESS' : '✗ FAIL';
+      // Sprint 8.3: the outcome is a story beat — the flavor line rides inside
+      // the pill so it always fits the viewport.
+      const flavor = s ? this.currentThreat.successLine : this.currentThreat.failLine;
       ctx.font = 'bold 24px sans-serif';
-      const w = ctx.measureText(label).width + 44;
-      const h = 48;
+      const labelW = ctx.measureText(label).width;
+      ctx.font = 'italic 13px sans-serif';
+      const flavorW = ctx.measureText(flavor).width;
+      const w = Math.max(labelW, flavorW) + 48;
+      const h = flavor ? 72 : 48;
       const px = W / 2 - w / 2;
-      const py = H * 0.85;
+      // Clamp so the pill never spills past the bottom on short viewports.
+      const py = Math.min(H * 0.85, H - h - 10);
       ctx.globalAlpha = 0.96;
       ctx.fillStyle = s ? 'rgba(34,80,34,0.92)' : 'rgba(90,26,26,0.92)';
       ctx.beginPath();
@@ -283,10 +300,20 @@ export class ThreatManager extends BaseRenderer {
       ctx.beginPath();
       (ctx as any).roundRect ? (ctx as any).roundRect(px, py, w, h, 12) : ctx.rect(px, py, w, h);
       ctx.stroke();
-      ctx.fillStyle = s ? '#d4ff8a' : '#ffcdd2';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, W / 2, py + h / 2);
+      if (flavor) {
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillStyle = s ? '#d4ff8a' : '#ffcdd2';
+        ctx.fillText(label, W / 2, py + h * 0.32);
+        ctx.font = 'italic 13px sans-serif';
+        ctx.fillStyle = s ? '#c9e8a0' : '#e8c0bd';
+        ctx.fillText(flavor, W / 2, py + h * 0.72);
+      } else {
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillStyle = s ? '#d4ff8a' : '#ffcdd2';
+        ctx.fillText(label, W / 2, py + h / 2);
+      }
       ctx.textBaseline = 'alphabetic';
       ctx.globalAlpha = 1;
     }
@@ -447,6 +474,27 @@ export class ThreatManager extends BaseRenderer {
     ctx.font = '14px sans-serif';
     ctx.fillStyle = '#aaa';
     ctx.fillText('Press SPACE when the yellow dot hits the green arc', cx, cy - R - 14);
+
+    // Sprint 8.3: themed beat word popup (manga style — big, outlined, rotated,
+    // scaling up while fading over ~0.7s)
+    if (this.beatPopup) {
+      const p = Math.min(1, this.beatPopup.t / ThreatManager.BEAT_POPUP_DURATION);
+      ctx.save();
+      ctx.globalAlpha = 1 - p;
+      ctx.translate(cx, cy - 10);
+      ctx.rotate(-0.12);
+      const scale = 1 + p * 0.7;
+      ctx.scale(scale, scale);
+      ctx.font = 'bold 34px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = '#000';
+      ctx.strokeText(this.beatPopup.text, 0, 0);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText(this.beatPopup.text, 0, 0);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
   }
 
   private renderSneak(ctx: CanvasRenderingContext2D, W: number, H: number): void {
@@ -586,11 +634,24 @@ export class ThreatManager extends BaseRenderer {
     const inZone = c.pulse >= c.targetStart && c.pulse <= c.targetEnd;
     if (inZone) {
       c.beats++;
-      if (c.beats >= c.needed) {
+      const final = c.beats >= c.needed;
+      // Sprint 8.3: themed onomatopoeia per hit; the final hit lands the mangaText.
+      const text = final
+        ? (this.currentThreat?.mangaText || this.beatText(c.beats - 1))
+        : this.beatText(c.beats - 1);
+      this.beatPopup = { text, t: 0 };
+      if (final) {
         this.finish(true);
       }
     } else {
       this.finish(false);
     }
+  }
+
+  /** Beat word for hit index i (1-based counting); falls back to mangaText. */
+  private beatText(index: number): string {
+    const beats = this.currentThreat?.beats;
+    if (beats && beats.length > 0) return beats[Math.min(index, beats.length - 1)];
+    return this.currentThreat?.mangaText ?? 'HIT!';
   }
 }

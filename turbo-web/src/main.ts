@@ -11,6 +11,7 @@
 
 import { State } from './engine/state';
 import { Audio } from './engine/audio';
+import { pickReactionLine } from './engine/companion-reactions';
 import { DOGS, ZONES, ITEMS, COMPANIONS, THREATS } from './data';
 import { HAPPINESS } from './config';
 import { FpRoomRenderer } from './engine/render/fp-room-renderer';
@@ -271,10 +272,26 @@ function init(): void {
     Audio.playSfx(success ? 'threat_success' : 'threat_fail');
     setActiveThreatType(null);
 
+    // Sprint 8.3: the active companion voices the outcome (seeded, deterministic
+    // pick from their reactions pool). For combat, it speaks once the manga
+    // cutaway finishes so the lines don't fight over the panel.
+    const showReaction = () => {
+      const activeId = State.activeCompanion;
+      const companion = activeId ? COMPANIONS[activeId] : undefined;
+      const line = pickReactionLine(companion, success, threatId);
+      if (!companion || !line) return;
+      Audio.playSfx('bark');
+      Audio.beginDuck();
+      dialogueOverlay.show(companion.name, line, companion.color, companion.accentColor);
+      setTimeout(() => Audio.endDuck(), 6000);
+    };
+
     // Manga cutaway for combat threats
     if (threat?.type === 'combat' && canvasEl) {
       mangaOverlay.start(threat, success);
-      mangaOverlay.onDone = () => { /* manga finished, nothing else to do */ };
+      mangaOverlay.onDone = showReaction;
+    } else {
+      showReaction();
     }
   };
   // HUD: live threat mini-game type for the warning border

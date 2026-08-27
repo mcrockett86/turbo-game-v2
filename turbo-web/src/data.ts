@@ -110,6 +110,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#DAA520',
     accentColor: '#FFD700',
+    reactions: {
+      success: [
+        'YES! You did it! That\'s one step closer to home!',
+        'Woof woof! So brave! I\'m proud of you, best friend!',
+      ],
+      fail: [
+        'Oh no... but it\'s okay! We\'ll try again, promise!',
+        'Whoops! Shake it off and keep wagging!',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -126,6 +136,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#5a4a3a',
     accentColor: '#8a7a5a',
+    reactions: {
+      success: [
+        'Good move. The way out just got a little clearer.',
+        'You saw through that. Exactly what the route needs.',
+      ],
+      fail: [
+        'A detour I didn\'t plan... but every dog takes one.',
+        'Steady. I remember a roundabout. I always remember.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -142,6 +162,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#3a3a3a',
     accentColor: '#ffffff',
+    reactions: {
+      success: [
+        'Observed, predicted, solved. Efficient.',
+        'I saw that coming three steps out. Well done.',
+      ],
+      fail: [
+        'A miscalculation. I\'m already planning the next one.',
+        'Don\'t worry. I\'ll factor that into the route.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -158,6 +188,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#B8860B',
     accentColor: '#DAA520',
+    reactions: {
+      success: [
+        'Found it! I mean — FOUND YOU! That\'s how we do it!',
+        'Huh! See? We always find our way. Dogs do!',
+      ],
+      fail: [
+        'Aw jeez... but I found a great spot to wait right here!',
+        'My nose says we\'ll be fine. Trust the nose.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -174,6 +214,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#6a6a6a',
     accentColor: '#9a9a9a',
+    reactions: {
+      success: [
+        'Hmph. Competent. I suppose I\'ll allow it.',
+        'Cats do it better. But... not bad for a dog.',
+      ],
+      fail: [
+        'I saw that from the rooftop. You really are hopeless.',
+        'Mew. Live to get home — you\'re my favorite dog.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -191,6 +241,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#D2691E',
     accentColor: '#FFD700',
+    reactions: {
+      success: [
+        'Whoosh! Like leaping right out of the lake!',
+        'The water taught me that. Keep the splash going!',
+      ],
+      fail: [
+        'Even my best swim had a splash like that.',
+        'Deep breath. The lake forgives — mostly.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -207,6 +267,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#FFB6C1',
     accentColor: '#FF69B4',
+    reactions: {
+      success: [
+        'Oh my! How chic! A perfectly groomed outcome!',
+        'Fabulous! I\'m telling everyone at the pet shop!',
+      ],
+      fail: [
+        'Oh dear... a little tangle. We\'ll brush it right out!',
+        'Sweetie, even the best poodles have off days.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -223,6 +293,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#FFFFFF',
     accentColor: '#FFD700',
+    reactions: {
+      success: [
+        'Beautiful! That\'s a show-stopping move!',
+        'The judges would give that a perfect score!',
+      ],
+      fail: [
+        'Even champions lose a round. Stand tall and retry.',
+        'Oof! Remember: confidence first, tricks second.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -239,6 +319,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#8B4513',
     accentColor: '#D2691E',
+    reactions: {
+      success: [
+        'Steady paws, sharp eyes. Just like the hunt.',
+        'I could smell that one coming. Well — almost. Good work.',
+      ],
+      fail: [
+        'The forest forgives. It also hides your mistakes.',
+        'Circle back, partner. The trail is still there.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -255,6 +345,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#4682B4',
     accentColor: '#87CEEB',
+    reactions: {
+      success: [
+        'Epic! You just stoked the perfect wave!',
+        'Rad! That\'s how you ride \u2014 all the way home!',
+      ],
+      fail: [
+        'Wipeout... it happens to the best of us.',
+        'The ocean always gives you another wave. Same here.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -271,6 +371,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#2F4F4F',
     accentColor: '#708090',
+    reactions: {
+      success: [
+        'Solid footing! The summit is just another step from here!',
+        'Strong climb! I\'ve seen the top. It\'s worth it.',
+      ],
+      fail: [
+        'A slip on the scree. Shake it off and grip again.',
+        'The mountain is patient. So should you be.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -287,6 +397,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#8B0000',
     accentColor: '#FF6347',
+    reactions: {
+      success: [
+        'That was so brave. I believe in you!',
+        'You\'re like a flower that blooms right after the rain!',
+      ],
+      fail: [
+        'Oh... that must have stung. I\'ll walk with you.',
+        'It\'s okay. Even the prettiest gardens get storms.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -303,6 +423,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#D2B48C',
     accentColor: '#8B4513',
+    reactions: {
+      success: [
+        'A thrilling chapter! The story of home keeps improving!',
+        'According to my research, that was a perfectly safe maneuver.',
+      ],
+      fail: [
+        'An unexpected plot twist. I\'m noting it in the margins.',
+        'Every good story has a setback chapter. This is a subplot.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -319,6 +449,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#FFF8DC',
     accentColor: '#FFD700',
+    reactions: {
+      success: [
+        'Fresh out of the oven! Perfectly done!',
+        'You\'re a real treat — I mean, a real star! Keep it up!',
+      ],
+      fail: [
+        'A little burnt, but we can always bake again.',
+        'Even the best bakeries set off the smoke alarm sometimes.',
+      ],
+    },
     met: false,
     active: false,
   },
@@ -335,6 +475,16 @@ export const COMPANIONS: Record<string, Companion> = {
     ],
     color: '#1a1a1a',
     accentColor: '#4a4a4a',
+    reactions: {
+      success: [
+        'Silent. Effective. The shadows approve.',
+        'I didn\'t even see you do it. Impressive, for a daylight dog.',
+      ],
+      fail: [
+        'Too loud. But even the night has clumsy moments.',
+        'The shadows will forget this. So will I. Eventually.',
+      ],
+    },
     met: false,
     active: false,
   },
