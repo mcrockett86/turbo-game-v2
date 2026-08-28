@@ -12,6 +12,7 @@
  */
 
 import { BaseRenderer } from './base-renderer';
+import { drawOnboardingBar, isOnboarded } from '../onboarding';
 
 export class HUDRenderer extends BaseRenderer {
   activeThreatType: string | null = null; // set by main.ts via setActiveThreatType provider
@@ -32,6 +33,9 @@ export class HUDRenderer extends BaseRenderer {
     routeRevealed: boolean;
   };
   getClues?: () => string[]; // short labels of clue items found
+  // Sprint 8.5: pending zone threat chip (icon + name) + onboarding state
+  getPendingThreat?: () => { name: string; icon: string } | null;
+  getIsOnboarded?: () => boolean;
 
   /** Lower-left panel: live metrics and the clues/items found so far. */
   private renderStatusPanel(ctx: CanvasRenderingContext2D, H: number): void {
@@ -198,11 +202,37 @@ export class HUDRenderer extends BaseRenderer {
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.font = '12px sans-serif';
-    ctx.fillText('[I]nventory  [C]ompanion  [H]int', 16, H - 34);
+    ctx.fillText('[I]nventory  [C]ompanion  [H]int  [J]ournal  [M]ap', 16, H - 34);
 
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = 'bold 13px sans-serif';
     ctx.fillText('[E] / [Space] — interact (threats & gates)   ·   items auto-pickup on touch', 16, H - 14);
+
+    // ===== Sprint 8.5: pending threat chip (so players aren't surprised) =====
+    if (!threatActive) {
+      const pending = this.getPendingThreat?.();
+      if (pending) {
+        const label = `⚠️ ${pending.icon} ${pending.name} ahead`;
+        ctx.font = 'bold 13px sans-serif';
+        const tw = ctx.measureText(label).width + 22;
+        const tx = W / 2 - tw / 2;
+        const ty = 76; // just under the zone pill
+        ctx.fillStyle = 'rgba(40,12,12,0.75)';
+        ctx.strokeStyle = 'rgba(255,120,120,0.6)';
+        ctx.lineWidth = 1;
+        roundRectPath(ctx, tx, ty, tw, 24, 12);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffd0d0';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, W / 2, ty + 17);
+      }
+    }
+
+    // ===== Sprint 8.5: first-run onboarding bar (click or [O] to dismiss) =====
+    if (!(this.getIsOnboarded?.() ?? isOnboarded())) {
+      drawOnboardingBar(ctx, W, H);
+    }
   }
 }
 
