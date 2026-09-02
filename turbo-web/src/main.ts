@@ -26,6 +26,7 @@ import { MapStore } from './engine/map-store';
 import { MapPanel } from './engine/map-panel';
 import { HintPanel } from './engine/hint-panel';
 import { StoryPanel } from './engine/story-panel';
+import { isOnboarded, markOnboarded, getOnboardingBarRect } from './engine/onboarding';
 import { Transitions } from './engine/transitions';
 import { perf } from './engine/perf';
 import { Endgame } from './engine/endgame';
@@ -122,6 +123,13 @@ const onKeyDown = (e: KeyboardEvent) => {
     companionPanel.hide();
     hintPanel.hide();
   }
+  if (k === 'o') {
+    // Sprint 8.5: dismiss the first-run control hints
+    if (!isOnboarded()) {
+      markOnboarded();
+      Audio.playSfx('select');
+    }
+  }
   if (e.key === 'Escape') {
     // Close any open panel
     if (inventoryRenderer.visible) inventoryRenderer.hide();
@@ -136,6 +144,17 @@ const onCanvasClick = (e: MouseEvent) => {
   const rect = canvasEl.getBoundingClientRect();
   const cx = e.clientX - rect.left;
   const cy = e.clientY - rect.top;
+
+  // Sprint 8.5: first-run onboarding bar — click anywhere on it to dismiss
+  if (currentScreen === 'playing' && !isOnboarded()) {
+    const r = getOnboardingBarRect(rect.width, rect.height);
+    if (cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h) {
+      markOnboarded();
+      Audio.playSfx('select');
+      e.stopPropagation();
+      return;
+    }
+  }
 
   // Endgame overlay takes priority
   if (endgame.active) {
@@ -266,6 +285,23 @@ function init(): void {
     }
     return clues;
   };
+
+  // Sprint 8.5: "threat ahead" chip — current zone's pending threat (entry or door).
+  // Note: State records resolutions by threat NAME (ThreatManager passes it),
+  // so match against the threat object's name, not the zone's id.
+  hudRenderer.getPendingThreat = () => {
+    const zone = ZONES[currentZoneId ?? ''];
+    if (!zone) return null;
+    const id = (zone.threat ?? zone.doorThreat) as string | undefined;
+    if (!id) return null;
+    const t = THREATS[id];
+    if (!t) return null;
+    if (State.getState().resolvedThreatIds.includes(t.name)) return null;
+    return { name: t.name, icon: t.icon };
+  };
+
+  // Sprint 8.5: first-run control hints
+  hudRenderer.getIsOnboarded = () => isOnboarded();
 
   // Wire threat manager to State + manga
   let activeThreatType: string | null = null;
@@ -1003,6 +1039,26 @@ function update(delta: number, time: number): void {
   get zonesVisited() { return [...State.getState().zonesVisited]; },
   get storyPanelVisible() { return storyPanel.isVisible; },
   get lastZoneIntro() { return lastZoneIntro; },
+  // Sprint 8.5: onboarding + pending threat chip + resolved threat tracking
+  get onboardingDismissed() { return isOnboarded(); },
+  onboardingBarRect: () => {
+    const c = document.querySelector('canvas');
+    if (!c) return null;
+    const r = c.getBoundingClientRect();
+    return getOnboardingBarRect(r.width, r.height);
+  },
+  dismissOnboarding: () => { if (currentScreen === 'playing' && !isOnboarded()) markOnboarded(); },
+  get pendingThreat() {
+    const zone = ZONES[currentZoneId ?? ''];
+    if (!zone) return null;
+    const id = (zone.threat ?? zone.doorThreat) as string | undefined;
+    if (!id) return null;
+    const t = THREATS[id];
+    if (!t) return null;
+    if (State.getState().resolvedThreatIds.includes(t.name)) return null;
+    return { id: id, name: t.name, icon: t.icon };
+  },
+  get resolvedThreatIds() { return [...State.getState().resolvedThreatIds]; },
   get endgameRecap() { return (endgame as any).recapText ?? null; },
   threatManager, // direct handle for test-only resolve/inspection
   transitions, // direct handle for test-only transition inspection

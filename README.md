@@ -228,4 +228,9 @@ Unit tests will be added in Sprint 3+ covering:
 
 ---
 
+### ✅ Sprint 7 Complete (Stability & Regression)
+- [x] HiDPI/DPR scaling + CSS polish (Sprint 7 M1)
+- [x] Resolved character movement lock-up after zone transitions
+- [x] Fixed regression tests for movement and interaction
+
 *Phase 2 rebuild avoids all V1 architecture bugs by starting fresh with proven patterns.*

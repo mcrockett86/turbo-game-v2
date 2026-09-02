@@ -19,6 +19,8 @@ export interface GameStateData {
   routeRevealed: boolean;
   itemsCollected: number;
   threatsResolved: number;
+  /** Threat ids the player has already dealt with (Sprint 8.5 HUD chip). */
+  resolvedThreatIds: string[];
   maxHappiness: number;
   startTime: number;
   gameOverTime: number | null;

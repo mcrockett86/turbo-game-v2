@@ -105,9 +105,15 @@ export class ThreatManager extends BaseRenderer {
 
   // Input — ThreatManager fully owns the keyboard while a threat is active
   private keysHeld: Set<string> = new Set();
+  // Sprint 8.5: mouse parity for hold-based minigames (comfort hold, sneak stillness)
+  private mouseHeld = false;
+  private mouseMoveTimer = 0;
   private boundKeyDown = this.onKeyDown.bind(this);
   private boundKeyUp = this.onKeyUp.bind(this);
   private boundCanvasClick = this.onCanvasClick.bind(this);
+  private boundMouseDown = this.onMouseDown.bind(this);
+  private boundMouseUp = this.onMouseUp.bind(this);
+  private boundMouseMove = this.onMouseMove.bind(this);
 
   /**
    * Returns true while a threat is active — the game loop and other renderers
@@ -164,6 +170,10 @@ export class ThreatManager extends BaseRenderer {
     window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('keyup', this.boundKeyUp);
     this.canvas?.addEventListener('click', this.boundCanvasClick);
+    this.canvas?.addEventListener('mousedown', this.boundMouseDown);
+    this.canvas?.addEventListener('mouseup', this.boundMouseUp);
+    this.canvas?.addEventListener('mouseleave', this.boundMouseUp);
+    this.canvas?.addEventListener('mousemove', this.boundMouseMove);
     this.onStateChange?.(this.phase, threat);
   }
 
@@ -201,6 +211,13 @@ export class ThreatManager extends BaseRenderer {
         this.phase = 'active';
         this.onStateChange?.(this.phase, this.currentThreat);
       }
+      return;
+    }
+
+    if (this.phase === 'resolved') {
+      // Outcome pause: let transient effects settle, but do NOT re-run the
+      // minigame — the success/fail condition is still true, so re-running
+      // would fire finish() (and onResolve) once per frame.
       return;
     }
 
@@ -338,6 +355,10 @@ export class ThreatManager extends BaseRenderer {
     window.removeEventListener('keydown', this.boundKeyDown);
     window.removeEventListener('keyup', this.boundKeyUp);
     this.canvas?.removeEventListener('click', this.boundCanvasClick);
+    this.canvas?.removeEventListener('mousedown', this.boundMouseDown);
+    this.canvas?.removeEventListener('mouseup', this.boundMouseUp);
+    this.canvas?.removeEventListener('mouseleave', this.boundMouseUp);
+    this.canvas?.removeEventListener('mousemove', this.boundMouseMove);
   }
 
   // ===== Type updaters =====
@@ -360,11 +381,11 @@ export class ThreatManager extends BaseRenderer {
 
   private updateSneak(delta: number): void {
     const s = this.sneak;
-    const moving = this.keysHeld.has('w') || this.keysHeld.has('a') ||
+    const keyboardMoving = this.keysHeld.has('w') || this.keysHeld.has('a') ||
                    this.keysHeld.has('s') || this.keysHeld.has('d') ||
                    this.keysHeld.has('arrowup') || this.keysHeld.has('arrowdown') ||
                    this.keysHeld.has('arrowleft') || this.keysHeld.has('arrowright');
-
+    const moving = keyboardMoving || this.mouseMoveTimer > 0;
     if (moving) {
       s.detection += s.riseRate * delta;
       this.sneakSafeTime = 0;
@@ -372,6 +393,7 @@ export class ThreatManager extends BaseRenderer {
       s.detection = Math.max(0, s.detection - s.fallRate * delta);
       if (s.detection === 0) this.sneakSafeTime += delta;
     }
+    this.mouseMoveTimer = Math.max(0, this.mouseMoveTimer - delta);
 
     if (s.detection >= s.failThreshold) {
       this.finish(false);
@@ -388,7 +410,7 @@ export class ThreatManager extends BaseRenderer {
     const c = this.comfort;
     c.elapsed += delta;
 
-    if (this.keysHeld.has(' ')) {
+    if (this.keysHeld.has(' ') || this.mouseHeld) {
       c.progress += c.rate * delta;
     }
 
@@ -574,6 +596,10 @@ export class ThreatManager extends BaseRenderer {
       window.removeEventListener('keydown', this.boundKeyDown);
       window.removeEventListener('keyup', this.boundKeyUp);
       this.canvas?.removeEventListener('click', this.boundCanvasClick);
+      this.canvas?.removeEventListener('mousedown', this.boundMouseDown);
+      this.canvas?.removeEventListener('mouseup', this.boundMouseUp);
+      this.canvas?.removeEventListener('mouseleave', this.boundMouseUp);
+      this.canvas?.removeEventListener('mousemove', this.boundMouseMove);
       this.onStateChange?.(this.phase, null);
     }, 600);
   }
@@ -618,6 +644,24 @@ export class ThreatManager extends BaseRenderer {
     e.preventDefault();
     if (this.currentType === 'timing') this.resolveTiming();
     else if (this.currentType === 'combat') this.resolveCombat();
+  }
+
+  private onMouseDown(e: MouseEvent): void {
+    if (this.phase !== 'active') return;
+    if (this.currentType === 'comfort' || this.currentType === 'sneak') {
+      e.preventDefault();
+      this.mouseHeld = true;
+    }
+  }
+
+  private onMouseUp(): void {
+    this.mouseHeld = false;
+  }
+
+  private onMouseMove(): void {
+    if (this.phase !== 'active' || this.currentType !== 'sneak') return;
+    // Any mouse travel counts as "moving" — same as WASD in sneak.
+    this.mouseMoveTimer = 0.15;
   }
 
   private resolveTiming(): void {

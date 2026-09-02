@@ -32,6 +32,7 @@ export class StateManager {
       routeRevealed: false,
       itemsCollected: 0,
       threatsResolved: 0,
+      resolvedThreatIds: [],
       maxHappiness: HAPPINESS.MAX,
       startTime: Date.now(),
       gameOverTime: null,
@@ -184,6 +185,12 @@ export class StateManager {
       this.modifyHappiness(HAPPINESS.THREAT_SUCCESS_REWARD);
     } else {
       this.modifyHappiness(-HAPPINESS.THREAT_FAIL_PENALTY);
+    }
+
+    // Sprint 8.5: remember which threats have been dealt with so the HUD
+    // "threat ahead" chip goes away once the zone's threat is resolved.
+    if (!this.state.resolvedThreatIds.includes(threatId)) {
+      this.state.resolvedThreatIds.push(threatId);
     }
 
     this.emit('resolveThreat', { threatId, success });
