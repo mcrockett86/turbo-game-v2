@@ -2,24 +2,19 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
-  root: '.',
-  
+  root: 'turbo-web',
+
   resolve: {
     alias: {
       '@': resolve(__dirname, 'turbo-web/src'),
     },
   },
-  
+
   build: {
-    outDir: 'dist',
+    outDir: '../dist',
     sourcemap: true,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'turbo-web/index.html'),
-      },
-    },
   },
-  
+
   server: {
     host: '0.0.0.0',
     port: 3094,
