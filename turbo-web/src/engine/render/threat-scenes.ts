@@ -80,36 +80,69 @@ const C = {
 function quadBody(ctx: Ctx, x: number, y: number, s: number, color: string, t: number): void {
   const bob = Math.sin(t * 3) * s * 0.05;
   const by = y + bob;
+  
+  // 1. Shadow Layer
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ell(ctx, x + s * 0.05, by + s * 0.1, s, s * 0.6);
+  ctx.fill();
+
+  // 2. Main Body (Organic Shape)
   ctx.fillStyle = color;
-  // legs
-  for (const lx of [-0.55, -0.2, 0.2, 0.55]) {
-    ctx.fillRect(x + lx * s - s * 0.08, by + s * 0.35, s * 0.16, s * 0.5);
-  }
-  // body
-  ell(ctx, x, by, s, s * 0.62);
-  ctx.fill();
-  // tail (wagging)
-  const wag = Math.sin(t * 6) * 0.5;
-  ctx.save();
-  ctx.translate(x - s * 0.95, by - s * 0.1);
-  ctx.rotate(wag);
-  ell(ctx, 0, 0, s * 0.28, s * 0.16);
-  ctx.fill();
-  ctx.restore();
-  // head
-  disc(ctx, x + s * 0.85, by - s * 0.35, s * 0.55);
-  // ears
   ctx.beginPath();
-  ctx.moveTo(x + s * 0.6, by - s * 0.75);
-  ctx.lineTo(x + s * 0.5, by - s * 1.15);
-  ctx.lineTo(x + s * 0.95, by - s * 0.8);
+  ctx.moveTo(x - s, by);
+  ctx.bezierCurveTo(x - s, by - s * 0.8, x + s, by - s * 0.8, x + s, by);
+  ctx.bezierCurveTo(x + s, by + s * 0.6, x - s, by + s * 0.6, x - s, by);
   ctx.closePath();
   ctx.fill();
-  // eye
+
+  // 3. Highlight Layer
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.beginPath();
+  ctx.ellipse(x - s * 0.3, by - s * 0.3, s * 0.4, s * 0.2, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs (Padded)
+  ctx.fillStyle = color;
+  for (const lx of [-0.55, -0.2, 0.2, 0.55]) {
+    ctx.beginPath();
+    ctx.roundRect(x + lx * s - s * 0.1, by + s * 0.4, s * 0.2, s * 0.5, 5);
+    ctx.fill();
+  }
+
+  // Tail (Wagging + Curved)
+  const wag = Math.sin(t * 6) * 0.5;
+  ctx.save();
+  ctx.translate(x - s * 0.9, by - s * 0.1);
+  ctx.rotate(wag);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(-s * 0.3, -s * 0.2, -s * 0.5, s * 0.2, -s * 0.4, s * 0.4);
+  ctx.lineTo(0, s * 0.1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Head (More organic)
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(x + s * 0.85, by - s * 0.3, s * 0.6, s * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Ears (Curved)
+  ctx.beginPath();
+  ctx.moveTo(x + s * 0.6, by - s * 0.6);
+  ctx.bezierCurveTo(x + s * 0.5, by - s * 1.2, x + s * 0.9, by - s * 1.3, x + s * 0.95, by - s * 0.7);
+  ctx.closePath();
+  ctx.fill();
+
+  // Eye
   ctx.fillStyle = C.ink;
-  disc(ctx, x + s * 1.0, by - s * 0.42, s * 0.09);
-  // nose
-  disc(ctx, x + s * 1.32, by - s * 0.3, s * 0.1);
+  disc(ctx, x + s * 1.0, by - s * 0.4, s * 0.1);
+  
+  // Nose
+  ctx.fillStyle = '#222';
+  disc(ctx, x + s * 1.3, by - s * 0.25, s * 0.12);
 }
 
 /** A standing person (head, torso, legs, arms). `x,y` is the hip center. */
