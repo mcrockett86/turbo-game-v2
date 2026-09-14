@@ -102,6 +102,14 @@ export const COMPANIONS: Record<string, Companion> = {
     name: 'Buddy',
     breed: 'Golden Retriever',
     trait: '🐾 Friendly',
+    abilities: [
+      {
+        id: 'scent_boost',
+        name: 'Scent Boost',
+        description: 'Reveals nearby clues on the map automatically.',
+        effect: (state) => state.hintsUnlocked.length < 6
+      }
+    ],
     dialogue: [
       'Woof! Welcome to the park!',
       'Home is where the fence is. Which fence?',
@@ -1932,3 +1940,38 @@ export const THREATS: Record<string, Threat> = {
 
 // Export all data as a single object for bootstrapping
 export const GAME_DATA = { DOGS, ZONES, ITEMS, THREATS, COMPANIONS };
+\n
+export const STORY_GOALS = {
+  'find_collar': {
+    id: 'find_collar',
+    title: 'The Golden Collar',
+    description: 'Find the missing collar in the Forest.',
+    requirement: { type: 'item', refId: 'golden_collar' },
+    isOptional: false,
+    reward: { happiness: 10 }
+  },
+  'meet_buddy': {
+    id: 'meet_buddy',
+    title: 'Make a Friend',
+    description: 'Meet Buddy the Golden Retriever.',
+    requirement: { type: 'companion', refId: 'stray_buddy' },
+    isOptional: false,
+    reward: { happiness: 15 }
+  },
+  'explore_lake': {
+    id: 'explore_lake',
+    title: 'Lake Lookout',
+    description: 'Visit the Sparkling Lake.',
+    requirement: { type: 'zone', refId: 'lake' },
+    isOptional: true,
+    reward: { happiness: 5 }
+  },
+  'brave_traffic': {
+    id: 'brave_traffic',
+    title: 'Urban Explorer',
+    description: 'Overcome the traffic jam in the city.',
+    requirement: { type: 'threat', refId: 'traffic_jam' },
+    isOptional: true,
+    reward: { happiness: 10 }
+  }
+};

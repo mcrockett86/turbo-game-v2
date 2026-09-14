@@ -80,36 +80,69 @@ const C = {
 function quadBody(ctx: Ctx, x: number, y: number, s: number, color: string, t: number): void {
   const bob = Math.sin(t * 3) * s * 0.05;
   const by = y + bob;
+  
+  // 1. Shadow Layer
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ell(ctx, x + s * 0.05, by + s * 0.1, s, s * 0.6);
+  ctx.fill();
+
+  // 2. Main Body (Organic Shape)
   ctx.fillStyle = color;
-  // legs
-  for (const lx of [-0.55, -0.2, 0.2, 0.55]) {
-    ctx.fillRect(x + lx * s - s * 0.08, by + s * 0.35, s * 0.16, s * 0.5);
-  }
-  // body
-  ell(ctx, x, by, s, s * 0.62);
-  ctx.fill();
-  // tail (wagging)
-  const wag = Math.sin(t * 6) * 0.5;
-  ctx.save();
-  ctx.translate(x - s * 0.95, by - s * 0.1);
-  ctx.rotate(wag);
-  ell(ctx, 0, 0, s * 0.28, s * 0.16);
-  ctx.fill();
-  ctx.restore();
-  // head
-  disc(ctx, x + s * 0.85, by - s * 0.35, s * 0.55);
-  // ears
   ctx.beginPath();
-  ctx.moveTo(x + s * 0.6, by - s * 0.75);
-  ctx.lineTo(x + s * 0.5, by - s * 1.15);
-  ctx.lineTo(x + s * 0.95, by - s * 0.8);
+  ctx.moveTo(x - s, by);
+  ctx.bezierCurveTo(x - s, by - s * 0.8, x + s, by - s * 0.8, x + s, by);
+  ctx.bezierCurveTo(x + s, by + s * 0.6, x - s, by + s * 0.6, x - s, by);
   ctx.closePath();
   ctx.fill();
-  // eye
+
+  // 3. Highlight Layer
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.beginPath();
+  ctx.ellipse(x - s * 0.3, by - s * 0.3, s * 0.4, s * 0.2, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs (Padded)
+  ctx.fillStyle = color;
+  for (const lx of [-0.55, -0.2, 0.2, 0.55]) {
+    ctx.beginPath();
+    ctx.roundRect(x + lx * s - s * 0.1, by + s * 0.4, s * 0.2, s * 0.5, 5);
+    ctx.fill();
+  }
+
+  // Tail (Wagging + Curved)
+  const wag = Math.sin(t * 6) * 0.5;
+  ctx.save();
+  ctx.translate(x - s * 0.9, by - s * 0.1);
+  ctx.rotate(wag);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(-s * 0.3, -s * 0.2, -s * 0.5, s * 0.2, -s * 0.4, s * 0.4);
+  ctx.lineTo(0, s * 0.1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Head (More organic)
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(x + s * 0.85, by - s * 0.3, s * 0.6, s * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Ears (Curved)
+  ctx.beginPath();
+  ctx.moveTo(x + s * 0.6, by - s * 0.6);
+  ctx.bezierCurveTo(x + s * 0.5, by - s * 1.2, x + s * 0.9, by - s * 1.3, x + s * 0.95, by - s * 0.7);
+  ctx.closePath();
+  ctx.fill();
+
+  // Eye
   ctx.fillStyle = C.ink;
-  disc(ctx, x + s * 1.0, by - s * 0.42, s * 0.09);
-  // nose
-  disc(ctx, x + s * 1.32, by - s * 0.3, s * 0.1);
+  disc(ctx, x + s * 1.0, by - s * 0.4, s * 0.1);
+  
+  // Nose
+  ctx.fillStyle = '#222';
+  disc(ctx, x + s * 1.3, by - s * 0.25, s * 0.12);
 }
 
 /** A standing person (head, torso, legs, arms). `x,y` is the hip center. */
@@ -1260,33 +1293,46 @@ function actorSpirit(ctx: Ctx, x: number, y: number, s: number, t: number): void
 // ===== weather / nature-force actors =====
 
 function actorStorm(ctx: Ctx, x: number, y: number, s: number, t: number): void {
-  // cloud
-  ctx.fillStyle = '#5c677d';
-  disc(ctx, x - s * 0.5, y - s * 0.4, s * 0.5);
-  disc(ctx, x + s * 0.1, y - s * 0.6, s * 0.6);
-  disc(ctx, x + s * 0.6, y - s * 0.35, s * 0.45);
-  ctx.fillRect(x - s * 0.8, y - s * 0.4, s * 1.6, s * 0.4);
-  // rain streaks
-  ctx.strokeStyle = 'rgba(76, 201, 240, 0.7)';
-  ctx.lineWidth = Math.max(1.5, s * 0.06);
-  for (let i = 0; i < 7; i++) {
-    const rx = x - s * 0.9 + i * s * 0.3;
-    const off = (t * 200 + i * 25) % (s * 1.4);
+  // Layered Storm Cloud (Deep and Voluminous)
+  const cloudSwell = Math.sin(t * 1.5) * s * 0.1;
+  ctx.fillStyle = '#2a2a3e';
+  for (let i = 0; i < 3; i++) {
+    const off = i * s * 0.2;
     ctx.beginPath();
-    ctx.moveTo(rx, y + off);
-    ctx.lineTo(rx - s * 0.08, y + off + s * 0.25);
+    ctx.ellipse(x + (i-1)*s*0.3, y - s * 0.4 + cloudSwell, s * 0.7, s * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Electric Core
+  const spark = Math.sin(t * 12) > 0.8;
+  ctx.fillStyle = spark ? '#fff' : 'rgba(76, 201, 240, 0.3)';
+  disc(ctx, x, y - s * 0.3, s * 0.2);
+
+  // Dynamic Rain (Perspective-based)
+  ctx.strokeStyle = 'rgba(76, 201, 240, 0.6)';
+  ctx.lineWidth = Math.max(1, s * 0.05);
+  for (let i = 0; i < 12; i++) {
+    const rx = x - s * 1.2 + (i * s * 0.2);
+    const py = y + s * 0.2 + (Math.sin(t * 5 + i) * s * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(rx, py);
+    ctx.lineTo(rx - s * 0.1, py + s * 0.4);
     ctx.stroke();
   }
-  // lightning flash
-  if (Math.sin(t * 2.2) > 0.92) {
-    ctx.strokeStyle = C.yellow;
-    ctx.lineWidth = Math.max(2, s * 0.1);
+
+  // Cinematic Lightning (Screeching Bolt)
+  if (Math.sin(t * 2.2) > 0.9) {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = s * 0.15;
+    ctx.shadowColor = '#4cc9f0';
+    ctx.shadowBlur = s * 0.5;
     ctx.beginPath();
-    ctx.moveTo(x + s * 0.1, y + s * 0.1);
-    ctx.lineTo(x - s * 0.15, y + s * 0.6);
-    ctx.lineTo(x + s * 0.1, y + s * 0.6);
-    ctx.lineTo(x - s * 0.2, y + s * 1.1);
+    ctx.moveTo(x + s * 0.2, y - s * 0.2);
+    ctx.lineTo(x - s * 0.4, y + s * 0.3);
+    ctx.lineTo(x + s * 0.1, y + s * 0.5);
+    ctx.lineTo(x - s * 0.6, y + s * 1.2);
     ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 }
 
@@ -1442,27 +1488,52 @@ function actorQuake(ctx: Ctx, x: number, y: number, s: number, t: number): void 
 function actorVacuum(ctx: Ctx, x: number, y: number, s: number, t: number): void {
   const drive = Math.sin(t * 2) * s * 0.35;
   const vx = x + drive;
-  // disc body
-  ctx.fillStyle = '#4a4a5e';
-  ell(ctx, vx, y, s * 0.85, s * 0.4);
+  
+  // 1. Chassis (Layered Industrial Look)
+  ctx.fillStyle = '#2a2a3e';
+  ell(ctx, vx, y, s * 0.9, s * 0.45);
   ctx.fill();
-  // bumper
-  ctx.strokeStyle = '#8d99ae';
-  ctx.lineWidth = Math.max(2, s * 0.09);
+  
+  ctx.fillStyle = '#3a3a5e';
+  ell(ctx, vx, y - s * 0.1, s * 0.8, s * 0.35);
+  ctx.fill();
+
+  // 2. The Hose (Dynamic flexible tube)
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = s * 0.2;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.arc(vx, y, s * 0.85, Math.PI * 0.15, Math.PI * 0.85);
+  ctx.moveTo(vx, y - s * 0.2);
+  ctx.bezierCurveTo(
+    vx + s * 0.5, y - s * 0.8 + Math.sin(t*3)*s*0.2, 
+    vx + s * 1.2, y - s * 0.4 + Math.cos(t*2)*s*0.2, 
+    vx + s * 1.5, y - s * 1.1
+  );
   ctx.stroke();
-  // spinning sensor light
-  const led = Math.sin(t * 8) > 0 ? C.teal : C.red;
-  ctx.fillStyle = led;
-  disc(ctx, vx, y - s * 0.08, s * 0.1);
-  // dust being sucked
-  for (let i = 0; i < 3; i++) {
-    const p = ((t * 1.5 + i * 0.33) % 1);
-    const dx = vx - (1 - p) * s * 1.2;
-    const dy = y - (1 - p) * s * 0.3 - s * 0.15;
-    ctx.fillStyle = `rgba(141, 153, 174, ${(0.7 * p).toFixed(2)})`;
-    disc(ctx, dx, dy, Math.max(1, s * 0.05));
+  
+  // Hose Nozzle
+  ctx.fillStyle = '#1a1a2e';
+  disc(ctx, vx + s * 1.5, y - s * 1.1, s * 0.15);
+
+  // 3. Bumper & Tech
+  ctx.strokeStyle = '#8d99ae';
+  ctx.lineWidth = s * 0.1;
+  ctx.beginPath();
+  ctx.arc(vx, y, s * 0.9, Math.PI * 0.1, Math.PI * 0.9);
+  ctx.stroke();
+
+  // Warning Light (Pulsing)
+  const flash = 0.5 + 0.5 * Math.sin(t * 8);
+  ctx.fillStyle = flash > 0.5 ? '#ff4d4d' : '#ffcc00';
+  disc(ctx, vx, y - s * 0.3, s * 0.12);
+  
+  // 4. Vacuum Effect (Particle Stream)
+  for (let i = 0; i < 5; i++) {
+    const p = ((t * 2 + i * 0.2) % 1);
+    const dx = vx + (p * s * 1.2);
+    const dy = y + (p * s * 0.5) + Math.sin(t * 4 + i) * s * 0.1;
+    ctx.fillStyle = `rgba(141, 153, 174, ${0.6 * (1 - p)})`;
+    disc(ctx, dx, dy, Math.max(1, s * 0.08 * (1 - p)));
   }
 }
 

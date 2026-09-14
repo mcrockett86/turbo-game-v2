@@ -5,21 +5,20 @@
  * No direct mutations from outside modules.
  */
 
-import type { GameState, GameStateData, DogId, CompanionId, StoryEntry, StoryEntryKind } from '@/types';
+import type { GameState, GameStateData, DogId, CompanionId, StoryEntry, StoryEntryKind, StoryGoal } from '@/types';
 import { HAPPINESS } from '@/config';
-import { ITEMS } from '@/data';
+import { ITEMS, STORY_GOALS, COMPANIONS } from '@/data';
 
 type StateListener = (state: GameStateData) => void;
 
 export class StateManager {
   private state: GameStateData;
   private listeners: Set<StateListener> = new Set();
+  private flightRecorder: Array<{timestamp: number; event: string; data: any}> = [];
   
   constructor() {
     this.state = this.getInitialState();
   }
-  
-  // ===== Initialization =====
   
   private getInitialState(): GameStateData {
     return {
@@ -33,6 +32,7 @@ export class StateManager {
       itemsCollected: 0,
       threatsResolved: 0,
       resolvedThreatIds: [],
+      completedGoalIds: new Set(),
       maxHappiness: HAPPINESS.MAX,
       startTime: Date.now(),
       gameOverTime: null,
@@ -40,8 +40,18 @@ export class StateManager {
       zonesVisited: [],
     };
   }
+  }
   
-  // ===== Selectors (Read-only access) =====
+
+  isAbilityActive(abilityId: string): boolean {
+    const companionId = this.state.activeCompanion;
+    if (!companionId) return false;
+    const companion = COMPANIONS[companionId];
+    return companion?.abilities?.some(a => a.id === abilityId) ?? false;
+  }
+
+
+
   
   getState(): GameStateData {
     return this.state;
@@ -117,6 +127,7 @@ export class StateManager {
     }
     
     this.state.itemsCollected++;
+    this.evaluateGoals();
     this.emit('collectItem', { itemId });
     return true;
   }
@@ -153,6 +164,7 @@ export class StateManager {
       }
     }
     
+    this.evaluateGoals();
     this.emit('meetCompanion', { companionId });
   }
   
@@ -193,6 +205,7 @@ export class StateManager {
       this.state.resolvedThreatIds.push(threatId);
     }
 
+    this.evaluateGoals();
     this.emit('resolveThreat', { threatId, success });
   }
   
@@ -204,6 +217,7 @@ export class StateManager {
     if (!zoneId) return false;
     if (this.state.zonesVisited.includes(zoneId)) return false;
     this.state.zonesVisited.push(zoneId);
+    this.evaluateGoals();
     this.emit('zoneVisited', { zoneId });
     return true;
   }
@@ -296,6 +310,7 @@ export class StateManager {
     }
     
     // Notify all listeners
+    this.flightRecorder.push({ timestamp: Date.now(), event: event || "all", data: data || this.state });
     this.listeners.forEach(listener => listener(this.state));
   }
   
@@ -306,9 +321,44 @@ export class StateManager {
     return validIds.includes(dogId);
   }
   
+
+  private evaluateGoals(): void {
+    Object.values(STORY_GOALS).forEach(goal => {
+      if (this.state.completedGoalIds.has(goal.id)) return;
+
+      let achieved = false;
+      const { type, refId, count = 1 } = goal.requirement;
+
+      if (type === 'item') {
+        const slot = this.state.inventory.find(s => s.item === refId);
+        if (slot && slot.count >= count) achieved = true;
+      } else if (type === 'companion') {
+        if (this.state.companionsMet.has(refId)) achieved = true;
+      } else if (type === 'zone') {
+        if (this.state.zonesVisited.includes(refId)) achieved = true;
+      } else if (type === 'threat') {
+        if (this.state.resolvedThreatIds.includes(refId)) achieved = true;
+      }
+
+      if (achieved) {
+        this.state.completedGoalIds.add(goal.id);
+        if (goal.reward) {
+          this.modifyHappiness(goal.reward.happiness);
+        }
+        this.emit('goalCompleted', { goalId: goal.id });
+      }
+    });
+  }
+
+
   reset(): void {
     this.state = this.getInitialState();
+    this.flightRecorder = [];
     this.emit('reset');
+  }
+
+  getFlightLog() {
+    return this.flightRecorder;
   }
 }
 

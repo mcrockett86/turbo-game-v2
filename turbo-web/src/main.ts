@@ -1059,6 +1059,7 @@ function update(delta: number, time: number): void {
     return { id: id, name: t.name, icon: t.icon };
   },
   get resolvedThreatIds() { return [...State.getState().resolvedThreatIds]; },
+  get flightLog() { return State.getFlightLog(); },
   get endgameRecap() { return (endgame as any).recapText ?? null; },
   threatManager, // direct handle for test-only resolve/inspection
   transitions, // direct handle for test-only transition inspection

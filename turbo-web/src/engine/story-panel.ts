@@ -9,6 +9,8 @@
  */
 
 import type { StoryEntry, StoryEntryKind } from '@/types';
+import { STORY_GOALS } from '@/data';
+import { State } from './state';
 
 const KIND_ORDER: StoryEntryKind[] = ['zone', 'threat', 'companion', 'item', 'hint'];
 
@@ -67,6 +69,30 @@ export class StoryPanel {
     return this.entries.length;
   }
 
+  private renderGoals(ctx: CanvasRenderingContext2D, left: number, right: number, startY: number, budget: number): number {
+    let y = startY;
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = '#d4af2e';
+    ctx.fillText('🎯 Adventure Goals', left, y);
+    y += 22;
+
+    const completed = State.getState().completedGoalIds;
+    const goals = Object.values(STORY_GOALS);
+    
+    ctx.font = '12px sans-serif';
+    for (const goal of goals) {
+      if (y > (this.canvas?.height ?? 0) - 14) break;
+      const isDone = completed.has(goal.id);
+      ctx.fillStyle = isDone ? '#8a93a8' : '#e8ecf5';
+      const marker = isDone ? '✓' : '○';
+      const title = `${marker} ${goal.title}`;
+      ctx.fillText(truncate(title, Math.floor((right - left) / 6.2)), left + 10, y);
+      y += 20;
+    }
+    return y;
+  }
+
   private clear(): void {
     this.ctx?.clearRect(0, 0, this.canvas?.width ?? 0, this.canvas?.height ?? 0);
   }
@@ -120,10 +146,14 @@ export class StoryPanel {
       py + 60,
     );
 
-    // Grouped entries
-    let y = py + 84;
     const left = px + 18;
     const right = px + pw - 18;
+
+    // Adventure Goals
+    const goalsY = this.renderGoals(ctx, left, right, py + 84, ph);
+    
+    // Grouped entries
+    let y = goalsY + 6;
     let budget = ph - (y - py) - 14;
 
     for (const kind of KIND_ORDER) {

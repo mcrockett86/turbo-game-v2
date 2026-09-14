@@ -119,6 +119,26 @@ export abstract class BaseRenderer {
   /** Clean up resources. Called by dispose() and re-init(). */
   protected onDestroy(): void {}
   
+
+  /** Returns a simplified hash of the current canvas content to detect freezes. */
+  getCanvasChecksum(): string {
+    if (!this.ctx || !this.canvas) return 'no-ctx';
+    const w = this.canvas.width, h = this.canvas.height;
+    // Sample 16x16 grid to keep it fast and stable across DPI
+    let hash = 0;
+    const sampleSize = 16;
+    for (let i = 0; i < sampleSize; i++) {
+      for (let j = 0; j < sampleSize; j++) {
+        const px = this.ctx.getImageData(
+          Math.floor((i / sampleSize) * w), 
+          Math.floor((j / sampleSize) * h), 1, 1
+        ).data;
+        hash = ((hash << 5) - hash + px[0] + px[1] * 7 + px[2] * 13) | 0;
+      }
+    }
+    return String(hash);
+  }
+
   /**
    * Dispose of all resources. Safe to call multiple times.
    * After this, the renderer must be re-initialized with init().

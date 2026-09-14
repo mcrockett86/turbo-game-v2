@@ -94,6 +94,10 @@ export class FpRoomRenderer extends BaseRenderer {
     this.doorTouchExit = null;
     this.doorTouchTime = 0;
     this.interactQueued = false;
+    
+    // Populate non-interactive clutter (furniture, boxes, rugs)
+    this.generateClutter();
+
 
     // Setup keyboard + mouse listeners
     window.addEventListener('keydown', this.boundKeyDown);
@@ -136,6 +140,33 @@ export class FpRoomRenderer extends BaseRenderer {
     });
   }
   
+
+  private generateClutter(): void {
+    if (!this.room) return;
+    const { w, d } = this.room;
+    const base = this.room.color;
+    // Add some random realistic obstacles a dog would navigate around
+    const types = [
+        { w: 40, h: 20, color: this.shadeColor(base, -0.2), label: 'Rug' },
+        { w: 20, h: 40, color: this.shadeColor(base, -0.4), label: 'Leg' },
+        { w: 60, h: 30, color: this.shadeColor(base, -0.3), label: 'Crate' },
+        { w: 30, h: 30, color: this.shadeColor(base, -0.1), label: 'Pillow' },
+    ];
+    
+    for(let i=0; i<3; i++) {
+        const t = types[Math.floor(Math.random() * types.length)];
+        this.clutter.push({
+            x: 40 + Math.random() * (w - 80),
+            y: 40 + Math.random() * (d - 80),
+            w: t.w,
+            h: t.h,
+            color: t.color,
+            label: t.label
+        });
+    }
+  }
+
+
   private roomName(roomId: string): string {
     const match = this.zoneRooms?.find(r => r.id === roomId);
     return match?.name ?? roomId;
@@ -215,11 +246,19 @@ export class FpRoomRenderer extends BaseRenderer {
       // E/Space while a door-threat is active -> trigger the threat (stay in this room)
       if (this.interactKeyHeld() && this.doorThreatId) {
         this.interactQueued = false;
+    
+    // Populate non-interactive clutter (furniture, boxes, rugs)
+    this.generateClutter();
+
         this.onDoorThreat?.(this.doorThreatId);
         this.doorThreatId = null; // one-shot
         return;
       }
       this.interactQueued = false;
+    
+    // Populate non-interactive clutter (furniture, boxes, rugs)
+    this.generateClutter();
+
       const exitId = nearest.roomId;
       this.onExitInteract?.(exitId);
     }
@@ -255,8 +294,21 @@ export class FpRoomRenderer extends BaseRenderer {
     const playerRadius = 15; // Visual radius of player
     const padding = playerRadius;
     
+    // Clamp to room bounds
     newX = Math.max(padding, Math.min(this.room.w - padding, newX));
     newY = Math.max(padding, Math.min(this.room.d - padding, newY));
+
+    // Collision detection with clutter
+    for (const obj of this.clutter) {
+        const closestX = Math.max(obj.x, Math.min(newX, obj.x + obj.w));
+        const closestY = Math.max(obj.y, Math.min(newY, obj.y + obj.h));
+        const dist = Math.hypot(newX - closestX, newY - closestY);
+        if (dist < padding) {
+            // Simple slide: if we hit it, stop the axis that caused the collision
+            if (this.playerX === newX) newX = this.playerX;
+            if (this.playerY === newY) newY = this.playerY;
+        }
+    }
     
     this.playerX = newX;
     this.playerY = newY;
@@ -302,7 +354,8 @@ export class FpRoomRenderer extends BaseRenderer {
 
     this.renderRoom();
     this.renderFeatures();
-    this.renderExits();
+    this.renderClutter();
+  this.renderExits();
     this.renderPlayer();
     this.renderVignette();
   }
@@ -320,21 +373,32 @@ export class FpRoomRenderer extends BaseRenderer {
     const wall = 10; // wall thickness (px)
     const x = offsetX, y = offsetY;
 
-    // Floor: two-tone checkerboard (room color + 8% lighter), ~8 tiles across.
-    const tile = Math.max(10, Math.min(rw, rh) / 10);
+    // Floor: Warmer, grittier dog-perspective floor
     const base = room.color;
-    const light = this.shadeColor(base, 0.08);
-    const cols = Math.ceil(rw / tile);
-    const rows = Math.ceil(rh / tile);
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        ctx.fillStyle = (r + c) % 2 === 0 ? base : light;
-        const tx = x + c * tile;
-        const ty = y + r * tile;
-        const tw = Math.min(tile, x + rw - tx);
-        const th = Math.min(tile, y + rh - ty);
-        if (tw > 0 && th > 0) ctx.fillRect(tx, ty, tw, th);
-      }
+    ctx.fillStyle = base;
+    ctx.fillRect(x, y, rw, rh);
+
+    // Add soft 'grit' and texture spots
+    ctx.fillStyle = this.shadeColor(base, -0.05);
+    for(let i=0; i<20; i++) {
+        const sx = x + Math.random() * rw;
+        const sy = y + Math.random() * rh;
+        const sr = 2 + Math.random() * 8;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI*2);
+        ctx.fill();
+    }
+    
+    // Add low-perspective 'dust' streaks
+    ctx.strokeStyle = this.shadeColor(base, 0.1);
+    ctx.lineWidth = 2;
+    for(let i=0; i<5; i++) {
+        const sx = x + Math.random() * rw;
+        const sy = y + Math.random() * rh;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + (Math.random()-0.5)*20, sy + (Math.random()-0.5)*20);
+        ctx.stroke();
     }
 
     // Walls: thick filled rects with a 3-D top face (pseudo-extrusion).
@@ -472,6 +536,26 @@ export class FpRoomRenderer extends BaseRenderer {
    * footprint in px, `scale` is the room scale. Drawn to read as a distinct
    * object rather than a flat colored rect.
    */
+
+  private renderLayeredCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string): void {
+    // Base
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath();
+    ctx.arc(x, y + r * 0.2, r * 0.8, 0, Math.PI);
+    ctx.fill();
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+
   private renderFeatureSprite(ctx: CanvasRenderingContext2D, f: RoomFeature, x: number, y: number, base: number, scale: number): void {
     const c = this.getFeatureColor(f.type);
     const u = base / 30; // normalize a 30px reference footprint
@@ -479,9 +563,10 @@ export class FpRoomRenderer extends BaseRenderer {
 
     switch (f.type) {
       case 'food': {
-        // Plate (white ellipse) + kibble dots
         ctx.fillStyle = '#f5f5f5';
-        ctx.beginPath(); ctx.ellipse(x, y + 2 * u, 14 * u, 9 * u, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(x, y + 2 * u, 15 * u, 10 * u, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.beginPath(); ctx.ellipse(x, y + 3 * u, 12 * u, 5 * u, 0, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = this.shadeColor(c, -0.1);
         for (const [dx, dy, r] of [[-4, -1, 3], [3, -3, 2.5], [1, 3, 2.5], [-2, 4, 2]] as const) {
           ctx.beginPath(); ctx.arc(x + dx * u, y + dy * u, r * u, 0, Math.PI * 2); ctx.fill();
@@ -763,6 +848,30 @@ export class FpRoomRenderer extends BaseRenderer {
       ctx.fillText(label, x, y + 25 * scale);
     });
   }
+
+
+  private renderClutter(): void {
+    if (!this.ctx || !this.room) return;
+    const ctx = this.ctx;
+    const scale = this.roomScale();
+    
+    this.clutter.forEach(obj => {
+        const x = this.toCanvasX(obj.x);
+        const y = this.toCanvasY(obj.y);
+        const w = obj.w * scale;
+        const h = obj.h * scale;
+        
+        ctx.fillStyle = obj.color;
+        ctx.beginPath();
+        (ctx as any).roundRect ? (ctx as any).roundRect(x, y, w, h, 4 * scale) : ctx.rect(x, y, w, h);
+        ctx.fill();
+        
+        // Soft shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.fillRect(x, y + h - 2, w, 2);
+    });
+  }
+
 
   private renderPlayer(): void {
     if (!this.ctx || !this.room) return;
