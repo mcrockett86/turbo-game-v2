@@ -5,3 +5,4 @@ dist/
 *.png
 test-results/
 playwright-report/
+.hermes/

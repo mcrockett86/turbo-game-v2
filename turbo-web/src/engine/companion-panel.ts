@@ -168,10 +168,18 @@ export class CompanionPanel {
       ctx.textAlign = 'left';
       ctx.fillText(`${row.name} — ${companion.breed}`, row.rect.x + 14, row.rect.y + row.rect.h / 2 - 8);
 
-      // Trait
+      // Trait + Ability
       ctx.fillStyle = isActive ? '#8fd0ff' : '#9999bb';
       ctx.font = '13px sans-serif';
       ctx.fillText(row.trait, row.rect.x + 14, row.rect.y + row.rect.h / 2 + 12);
+      
+      const abilities = companion.abilities;
+      if (isActive && abilities && abilities.length > 0) {
+        ctx.fillStyle = '#4a9eff';
+        ctx.font = 'bold 11px sans-serif';
+        const abilList = abilities.map(a => a.name).join(', ');
+        ctx.fillText(`Ability: ${abilList}`, row.rect.x + 14, row.rect.y + row.rect.h / 2 + 24);
+      }
 
       // Active badge
       if (isActive) {

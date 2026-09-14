@@ -21,6 +21,7 @@ export interface GameStateData {
   threatsResolved: number;
   /** Threat ids the player has already dealt with (Sprint 8.5 HUD chip). */
   resolvedThreatIds: string[];
+  completedGoalIds: Set<string>;
   maxHappiness: number;
   startTime: number;
   gameOverTime: number | null;
@@ -347,13 +348,7 @@ export interface Companion {
   breed: string;
   trait: string;
   dialogue: string[];
-  /**
-   * Short reaction lines spoken after a threat resolves (Sprint 8.3).
-   * Pools, not per-zone keys — the zone context is carried by the threat's
-   * own successLine/failLine; the companion just voices the moment.
-   * Selection is deterministic (seeded by threat + outcome) so tests can
-   * assert the exact line.
-   */
+  abilities?: CompanionAbility[];
   reactions?: { success?: string[]; fail?: string[] };
   color: string;
   accentColor: string;
@@ -361,9 +356,30 @@ export interface Companion {
   active: boolean;
 }
 
+export interface CompanionAbility {
+  id: string;
+  name: string;
+  description: string;
+  effect: (state: GameStateData) => boolean;
+}
+
 export type CompanionId = string;
 
-// ===== Audio Types =====
+export interface StoryGoal {
+  id: string;
+  title: string;
+  description: string;
+  requirement: {
+    type: 'item' | 'companion' | 'zone' | 'threat';
+    refId: string;
+    count?: number;
+  };
+  isOptional: boolean;
+  reward?: {
+    happiness: number;
+    item?: string;
+  };
+}
 
 export interface MusicTrack {
   id: string;
