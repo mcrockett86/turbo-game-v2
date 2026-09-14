@@ -1940,7 +1940,6 @@ export const THREATS: Record<string, Threat> = {
 
 // Export all data as a single object for bootstrapping
 export const GAME_DATA = { DOGS, ZONES, ITEMS, THREATS, COMPANIONS };
-\n
 export const STORY_GOALS = {
   'find_collar': {
     id: 'find_collar',

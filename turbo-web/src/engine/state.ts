@@ -40,7 +40,7 @@ export class StateManager {
       zonesVisited: [],
     };
   }
-  }
+  
   
 
   isAbilityActive(abilityId: string): boolean {
