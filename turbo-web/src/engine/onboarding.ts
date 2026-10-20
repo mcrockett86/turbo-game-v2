@@ -36,8 +36,22 @@ export function getOnboardingBarRect(W: number, H: number): { x: number; y: numb
   return { x, y, w, h };
 }
 
+/**
+ * In-memory mirror of the acknowledgment.
+ *
+ * `typeof localStorage !== 'undefined'` is NOT a usable storage-availability
+ * test: Node 22 exposes a localStorage global that silently no-ops unless
+ * launched with --localstorage-file, and browsers expose one that THROWS on
+ * write when storage is blocked (private mode, cookies disabled). In both
+ * cases markOnboarded() was a no-op, so the control-hints bar could never be
+ * dismissed for that session. Fall back to this so the dismissal always sticks
+ * for the current run, and persists across runs whenever storage works.
+ */
+let onboardedFallback = false;
+
 /** True once the player has acknowledged the control hints (persisted). */
 export function isOnboarded(): boolean {
+  if (onboardedFallback) return true;
   try {
     return typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_KEY) === '1';
   } catch {
@@ -47,11 +61,20 @@ export function isOnboarded(): boolean {
 
 /** Persist the acknowledgment so the bar never shows again. */
 export function markOnboarded(): void {
+  onboardedFallback = true;
   try {
     if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, '1');
   } catch {
-    // private-mode / blocked storage — the bar will re-appear next run, which is fine
+    // private-mode / blocked storage — the in-memory flag still covers this run
   }
+}
+
+/**
+ * Test-only: clear the in-memory acknowledgment so a suite can assert the
+ * unacknowledged starting state regardless of test order.
+ */
+export function __resetOnboardingForTests(): void {
+  onboardedFallback = false;
 }
 
 /**

@@ -4,6 +4,8 @@
  * dialogue list. Auto-dismisses after a few seconds or on keypress.
  */
 
+import { isOnboarded } from './onboarding';
+
 interface DialogueState {
   name: string;
   line: string;
@@ -89,61 +91,66 @@ export class DialogueOverlay {
     ctx.globalAlpha = alpha;
 
     const { name, line, color, accentColor } = this.state;
-    const bubbleW = Math.min(680, W * 0.8);
-    const bubbleH = 132;
+    // Compact bubble: sized to the text (capped), sitting low so it never
+    // covers the play area. The old version was a fixed 680x132 slab that
+    // dimmed the WHOLE canvas, which hid the scene behind every line.
+    const bubbleW = Math.min(520, Math.max(260, W * 0.46));
+    const textW = bubbleW - 44;
+    const wrapped = wrapText(ctx, `“${line}”`, textW);
+    const shown = wrapped.slice(0, 3);
+    const lineH = 20;
+    const headH = 22;
+    const footH = 16;
+    const bubbleH = headH + shown.length * lineH + footH + 16;
     const bx = (W - bubbleW) / 2;
-    const by = H - bubbleH - 90; // sit above the bottom hint row
+    // Clear the bottom hint rows (and the first-run onboarding bar when shown).
+    const clearance = isOnboarded() ? 46 : 112;
+    const by = Math.max(70, H - bubbleH - clearance);
 
-    // Backdrop dim
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.fillRect(0, 0, W, H);
+    // Local backdrop: a soft shadow only behind the bubble, NOT a full-screen
+    // dim — the player keeps sight of the scene while a companion talks.
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    roundRect(ctx, bx + 3, by + 4, bubbleW, bubbleH, 16);
+    ctx.fill();
 
     // Bubble
     ctx.fillStyle = '#fffdf7';
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 3;
-    roundRect(ctx, bx, by, bubbleW, bubbleH, 18);
+    roundRect(ctx, bx, by, bubbleW, bubbleH, 16);
     ctx.fill();
     ctx.stroke();
 
     // Tail
     ctx.fillStyle = '#fffdf7';
     ctx.beginPath();
-    ctx.moveTo(W / 2 - 16, by + bubbleH);
-    ctx.lineTo(W / 2 + 16, by + bubbleH);
-    ctx.lineTo(W / 2, by + bubbleH + 18);
+    ctx.moveTo(W / 2 - 12, by + bubbleH);
+    ctx.lineTo(W / 2 + 12, by + bubbleH);
+    ctx.lineTo(W / 2, by + bubbleH + 13);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Name tag
-    ctx.fillStyle = color;
-    ctx.font = 'bold 15px sans-serif';
-    ctx.textAlign = 'left';
+    // Name tag + dismiss hint on one header row (keeps the box short)
     ctx.textBaseline = 'middle';
-    ctx.fillText(`🐕 ${name}`, bx + 20, by + 26);
-
-    // "said"
-    ctx.fillStyle = '#888';
-    ctx.font = 'italic 12px sans-serif';
+    ctx.fillStyle = color;
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`🐕 ${name}`, bx + 16, by + headH / 2 + 6);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('— says —', bx + bubbleW - 20, by + 26);
+    ctx.fillText('click / E / Esc', bx + bubbleW - 16, by + headH / 2 + 6);
 
-    // Dialogue line (wrap to max 2 lines)
+    // Dialogue line
     ctx.fillStyle = '#222';
-    ctx.font = '16px Georgia, serif';
+    ctx.font = '14px Georgia, serif';
     ctx.textAlign = 'center';
-    const wrapped = wrapText(ctx, `“${line}”`, bubbleW - 60);
-    wrapped.slice(0, 2).forEach((l, i) => {
-      ctx.fillText(l, W / 2, by + 68 + i * 24);
+    shown.forEach((l, i) => {
+      ctx.fillText(l, W / 2, by + headH + 12 + i * lineH);
     });
-
-    // Dismiss hint
-    ctx.fillStyle = '#999';
-    ctx.font = '11px sans-serif';
-    ctx.fillText('[click / E / Esc to dismiss]', W / 2, by + bubbleH - 12);
 
     ctx.restore();
   }

@@ -33,14 +33,10 @@
     <!-- Game View Container -->
     <div id="game-view" class="screen hidden">
       <canvas id="game-canvas" width="1280" height="720"></canvas>
-      <div id="hud-overlay">
-        <div id="happiness-bar-container">
-          <span id="happiness-label">HAPPINESS</span>
-          <div id="happiness-bar"><div id="happiness-fill"></div></div>
-        </div>
-        <div id="zone-indicator"></div>
-        <button id="hint-btn" class="hud-btn">🗺️</button>
-      </div>
+      <!-- The HUD (happiness, zone name, items, companion, minimap) is drawn
+           on the canvas by engine/render/hud.ts + engine/map-panel.ts. The old
+           DOM HUD that used to live here was dead code and its 🗺️ button
+           overlapped the canvas minimap. -->
     </div>
 
   </div>

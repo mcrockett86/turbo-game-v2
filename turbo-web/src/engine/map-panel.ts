@@ -16,6 +16,8 @@ interface PlacedZone {
   x: number; // panel-local center x
   y: number; // panel-local center y
   scale: number; // world->panel scale for this zone
+  cellW: number; // grid cell this node owns (keeps art inside it)
+  cellH: number;
 }
 
 export class MapPanel {
@@ -81,18 +83,26 @@ export class MapPanel {
     ctx.textAlign = 'right';
     ctx.fillText(`${explored}/${zones.length}`, px + PANEL_W - 12, py + 20);
 
-    // Legend (bottom)
+    // Legend (bottom). Entries are laid out left-to-right by measured width so
+    // the labels can never run into each other, and every entry here is a
+    // marker the map actually draws — the old legend advertised a "● you" dot
+    // that no code ever rendered, and a "🏠 home" entry that just duplicated
+    // the home node's own icon.
     const ly = py + PANEL_H - 12;
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
     ctx.font = '10px sans-serif';
-    ctx.fillStyle = '#9fd0ff';
-    ctx.fillText('● item', px + 12, ly);
-    ctx.fillStyle = '#ffd700';
-    ctx.fillText('◆ gate', px + 52, ly);
-    ctx.fillStyle = '#ff6b6b';
-    ctx.fillText('🏠 home', px + 96, ly);
-    ctx.fillStyle = '#8fd0ff';
-    ctx.fillText('● you', px + 150, ly);
+    const legend: Array<[string, string]> = [
+      ['#9fd0ff', '● item'],
+      ['#8bc34a', '● npc'],
+      ['#ffd700', '◆ gate'],
+    ];
+    let lx = px + 12;
+    for (const [color, text] of legend) {
+      ctx.fillStyle = color;
+      ctx.fillText(text, lx, ly);
+      lx += ctx.measureText(text).width + 14;
+    }
 
     // Map area
     const mapX = px + 8;
@@ -126,37 +136,42 @@ export class MapPanel {
     ctx.restore();
   }
 
-  /** Place explored zones in a ring around the hub; unexplored as faint dots. */
+  /**
+   * Lay zones out on a grid that always fits the panel.
+   *
+   * The previous layout put every zone on one ring (R≈85px). With 19 zones
+   * that is ~28px of arc per node — less than the 26px node circle, so nodes
+   * and their labels overlapped each other by design, and the element dots
+   * scattered on top of the neighbours. A grid guarantees a cell per zone at
+   * any zone count: hub first, then explored, then unexplored.
+   */
   private computeLayout(): void {
     this.placed = [];
     if (!this.store) return;
     const zones = this.store.zones();
-    const cx = PANEL_W / 2;
-    const cy = (PANEL_H - 22) / 2 + 6; // center of the map area (panel-local)
-    const R = Math.min(PANEL_W, PANEL_H) * 0.34;
+    if (zones.length === 0) return;
 
     const hub = this.store.hubZone();
-    const home = this.store.zone('home');
-    const others = zones.filter((z) => z.id !== hub && z.id !== 'home');
+    const order = (z: MappedZone) =>
+      z.id === hub ? 0 : z.explored ? 1 : 2;
+    const sorted = [...zones].sort((a, b) => {
+      const d = order(a) - order(b);
+      return d !== 0 ? d : a.id.localeCompare(b.id);
+    });
 
-    const ring: string[] = [];
-    if (hub) ring.push(hub);
-    for (const z of others) ring.push(z.id);
-    if (home) ring.push('home');
+    const mapW = PANEL_W - 16;
+    const mapH = PANEL_H - 52;
+    const cols = Math.max(1, Math.min(sorted.length, Math.ceil(Math.sqrt(sorted.length * (mapW / mapH)))));
+    const rows = Math.ceil(sorted.length / cols);
+    const cellW = mapW / cols;
+    const cellH = mapH / rows;
 
-    const n = ring.length;
-    ring.forEach((id, i) => {
-      const z = this.store!.zone(id);
-      if (!z) return;
-      // angle: start at top, go clockwise
-      const angle = -Math.PI / 2 + (i / Math.max(1, n)) * Math.PI * 2;
-      let x = cx;
-      let y = cy;
-      if (n > 1) {
-        x = cx + Math.cos(angle) * R;
-        y = cy + Math.sin(angle) * R;
-      }
-      this.placed.push({ zone: z, x, y, scale: 1 });
+    sorted.forEach((z, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = cellW * (col + 0.5);
+      const y = cellH * (row + 0.5) - 4; // small lift so the label has room
+      this.placed.push({ zone: z, x, y, scale: 1, cellW, cellH });
     });
   }
 
@@ -183,18 +198,41 @@ export class MapPanel {
     ctx.fillStyle = z.explored ? '#fff' : 'rgba(255,255,255,0.5)';
     ctx.fillText(isHome ? '🏠' : z.emoji, x, y + 1);
 
-    // Label (always shown)
-    ctx.font = isCurrent ? 'bold 10px sans-serif' : '10px sans-serif';
-    ctx.fillStyle = isCurrent ? '#fff' : z.explored ? '#c8c8e0' : 'rgba(200,200,220,0.55)';
-    const label = isHome ? 'HOME' : shortName(z.name);
-    ctx.fillText(label, x, y + NODE_R + 9);
+    // Label — explored zones only, truncated to the node's cell so labels of
+    // adjacent zones can never run into each other. The panel's own contract
+    // is "labeled nodes for explored zones, faint dots otherwise"; labeling
+    // everything printed the names of places the player has never reached.
+    if (z.explored || isCurrent) {
+      ctx.font = isCurrent ? 'bold 9px sans-serif' : '9px sans-serif';
+      ctx.fillStyle = isCurrent ? '#fff' : '#c8c8e0';
+      const wanted = isHome ? 'HOME' : shortName(z.name);
+      let label = wanted;
+      const maxW = p.cellW - 4;
+      while (label.length > 1 && ctx.measureText(label).width > maxW) {
+        label = label.slice(0, -1);
+      }
+      if (label !== wanted && label.length > 1) label = label.slice(0, -1) + '…';
+      ctx.fillText(label, x, y + Math.min(NODE_R + 8, p.cellH / 2 - 2));
+    }
 
     // Elements (items + gates + home) for explored zones, scaled around the node
     if (!z.explored || z.elements.length === 0) return;
+    // World offsets run to ±100, so a raw 0.55 scale scattered dots ~±55px
+    // from the node — across the panel onto other zones entirely. Compress
+    // into a halo that stays inside this node's own grid cell so dots can
+    // never land on a neighbour's node or label.
     const elScale = 0.55;
+    const HALO = Math.max(6, Math.min(18, p.cellW / 2 - 8, p.cellH / 2 - 10));
     for (const el of z.elements.slice(0, 12)) {
-      const ex = x + el.x * elScale;
-      const ey = y + el.y * elScale;
+      let dx = el.x * elScale;
+      let dy = el.y * elScale;
+      const d = Math.hypot(dx, dy);
+      if (d > HALO) {
+        dx = (dx / d) * HALO;
+        dy = (dy / d) * HALO;
+      }
+      const ex = x + dx;
+      const ey = y + dy;
       // keep within panel bounds
       if (ex < panelX + 6 || ex > panelX + PANEL_W - 6 || ey < panelY + 26 || ey > panelY + PANEL_H - 20) continue;
       drawElement(ctx, ex, ey, el.kind);

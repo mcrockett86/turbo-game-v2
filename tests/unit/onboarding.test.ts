@@ -9,10 +9,12 @@ import {
   markOnboarded,
   getOnboardingBarRect,
   ONBOARDING_HINTS,
+  __resetOnboardingForTests,
 } from '@/engine/onboarding';
 import { State } from '@/engine/state';
 
 beforeEach(() => {
+  __resetOnboardingForTests();
   try {
     localStorage.clear();
   } catch {

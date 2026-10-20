@@ -302,13 +302,10 @@ function init(): void {
 
   // Sprint 8.5: first-run control hints
   hudRenderer.getIsOnboarded = () => isOnboarded();
+  hudRenderer.getIsMapVisible = () => mapPanel.isVisible;
 
   // Wire threat manager to State + manga
-  let activeThreatType: string | null = null;
-  const setActiveThreatType = (t: string | null) => { activeThreatType = t; };
-  threatManager.onStart = (threat: { type: string }) => { setActiveThreatType(threat.type); };
-  threatManager.onStateChange = (phase, threat) => {
-    if (!threat) setActiveThreatType(null);
+  threatManager.onStateChange = (phase) => {
     // Duck the music bed while a threat minigame is in play (intro + active).
     if (phase === 'intro' || phase === 'active') Audio.beginDuck();
     else if (phase === 'resolved') Audio.endDuck();
@@ -317,7 +314,6 @@ function init(): void {
     const threat = THREATS[threatId];
     State.resolveThreat(threatId, success);
     Audio.playSfx(success ? 'threat_success' : 'threat_fail');
-    setActiveThreatType(null);
 
     // Sprint 8.3: the active companion voices the outcome (seeded, deterministic
     // pick from their reactions pool). For combat, it speaks once the manga
@@ -350,8 +346,6 @@ function init(): void {
       showReaction();
     }
   };
-  // HUD: live threat mini-game type for the warning border
-  hudRenderer.setActiveThreatType = setActiveThreatType;
 
   // Endgame restart -> full reset back to dog select
   endgame.onRestart = () => {
