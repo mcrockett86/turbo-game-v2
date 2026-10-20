@@ -15,14 +15,12 @@ import { BaseRenderer } from './base-renderer';
 import { drawOnboardingBar, isOnboarded } from '../onboarding';
 
 export class HUDRenderer extends BaseRenderer {
-  activeThreatType: string | null = null; // set by main.ts via setActiveThreatType provider
   getDogName?: () => string;
   getHappiness?: () => number; // 0-100
   getZoneName?: () => string;
   getItemCount?: () => number;
   getCompanionName?: () => string | null;
   isThreatActive?: () => boolean;
-  setActiveThreatType?: (type: string | null) => void; // live threat mini-game type (timing/combat/sneak/comfort)
   // Status panel data (lower-left)
   getMetrics?: () => {
     happiness: number;
@@ -36,9 +34,11 @@ export class HUDRenderer extends BaseRenderer {
   // Sprint 8.5: pending zone threat chip (icon + name) + onboarding state
   getPendingThreat?: () => { name: string; icon: string } | null;
   getIsOnboarded?: () => boolean;
+  // Minimap occupies the top-right corner; the HUD dodges it when visible.
+  getIsMapVisible?: () => boolean;
 
-  /** Lower-left panel: live metrics and the clues/items found so far. */
-  private renderStatusPanel(ctx: CanvasRenderingContext2D, H: number): void {
+  /** Lower-left status panel: live metrics and the clues/items found so far. */
+  private renderStatusPanel(ctx: CanvasRenderingContext2D, H: number, topOffset = 0): void {
     const metrics = this.getMetrics?.();
     const clues = this.getClues?.() ?? [];
     if (!metrics) return;
@@ -51,7 +51,7 @@ export class HUDRenderer extends BaseRenderer {
     const maxClues = 6;
     const headerH = 26;
     const bodyH = headerH + 5 * lineH + 6 + Math.min(clues.length, maxClues) * clueLineH + 8;
-    const y = 82; // just below the top pills
+    const y = 82 + topOffset; // just below the top pills (pushed down when a chip sits there)
 
     ctx.fillStyle = 'rgba(10,10,25,0.72)';
     ctx.strokeStyle = 'rgba(120,160,255,0.35)';
@@ -134,17 +134,6 @@ export class HUDRenderer extends BaseRenderer {
       ctx.globalAlpha = 0.6 + 0.4 * Math.sin(Date.now() / 150);
       ctx.strokeRect(3, 3, W - 6, H - 6);
       ctx.globalAlpha = 1;
-      const ttype = this.activeThreatType;
-      if (ttype) {
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        const label = `⚔️ ${ttype}`.toUpperCase();
-        ctx.font = 'bold 13px sans-serif';
-        const tw = ctx.measureText(label).width + 20;
-        ctx.fillRect(W / 2 - tw / 2, 4, tw, 24);
-        ctx.fillStyle = '#ffd0d0';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, W / 2, 21);
-      }
     }
 
     // ===== Top HUD: measure first, then place with guaranteed gaps =====
@@ -168,7 +157,11 @@ export class HUDRenderer extends BaseRenderer {
       ctx.measureText(rightLine1).width,
       rightLine2 ? ctx.measureText(rightLine2).width : 0
     ) + PAD * 2;
-    const rightX = W - MARGIN - rightContentW;
+    // The minimap (270px wide, top-right) renders ON TOP of the HUD, so when
+    // it's visible the pill would be hidden under it — dodge to its left.
+    const MAP_W = 270, MAP_MARGIN = 10;
+    const mapVisible = this.getIsMapVisible?.() ?? false;
+    const rightX = W - MARGIN - rightContentW - (mapVisible ? MAP_W + MAP_MARGIN + 8 : 0);
 
     // Center the zone pill in the full width (left happiness pill removed)
     const zoneX = W / 2 - zoneW / 2;
@@ -195,27 +188,22 @@ export class HUDRenderer extends BaseRenderer {
       ctx.fillText(rightLine2, rightX + rightContentW - PAD, boxY + 42);
     }
 
-    // ===== Lower-left status panel: metrics + clues found =====
-    this.renderStatusPanel(ctx, H);
-
-    // ===== Bottom-left: Panel hints + interact hint =====
-    ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = '12px sans-serif';
-    ctx.fillText('[I]nventory  [C]ompanion  [H]int  [J]ournal  [M]ap', 16, H - 34);
-
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.fillText('[E] / [Space] — interact (threats & gates)   ·   items auto-pickup on touch', 16, H - 14);
-
     // ===== Sprint 8.5: pending threat chip (so players aren't surprised) =====
+    // Drawn BEFORE the status panel so the panel can be pushed clear of it:
+    // on a narrow canvas the centered chip used to land on top of the panel.
+    let chipBottom = 0;
     if (!threatActive) {
       const pending = this.getPendingThreat?.();
       if (pending) {
         const label = `⚠️ ${pending.icon} ${pending.name} ahead`;
         ctx.font = 'bold 13px sans-serif';
         const tw = ctx.measureText(label).width + 22;
-        const tx = W / 2 - tw / 2;
+        let tx = W / 2 - tw / 2;
+        // On narrow canvases the centered chip would slide under the minimap
+        // (top-right) — keep it clear of that column.
+        if (mapVisible && tx + tw > W - MAP_W - MAP_MARGIN - 8) {
+          tx = Math.max(8, W - MAP_W - MAP_MARGIN - 8 - tw);
+        }
         const ty = 76; // just under the zone pill
         ctx.fillStyle = 'rgba(40,12,12,0.75)';
         ctx.strokeStyle = 'rgba(255,120,120,0.6)';
@@ -226,11 +214,33 @@ export class HUDRenderer extends BaseRenderer {
         ctx.fillStyle = '#ffd0d0';
         ctx.textAlign = 'center';
         ctx.fillText(label, W / 2, ty + 17);
+        // Does the chip sit over the status panel's column? If so, reserve room.
+        const PANEL_X = 16, PANEL_W = 210;
+        if (tx < PANEL_X + PANEL_W + 8 && tx + tw > PANEL_X - 8) chipBottom = ty + 24 + 6;
       }
     }
 
+    // ===== Lower-left status panel: metrics + clues found =====
+    this.renderStatusPanel(ctx, H, Math.max(0, chipBottom - 82));
+
+    // ===== Bottom-left: Panel hints + interact hint =====
+    // Hidden while a threat minigame owns the screen: the minigame draws its
+    // own solve hint at the bottom, and "[E]/[Space] — interact" is wrong
+    // advice mid-minigame (two contradictory tooltips stacked).
+    if (!threatActive) {
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('[I]nventory  [C]ompanion  [H]int  [J]ournal  [M]ap', 16, H - 34);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText('[E] / [Space] — interact (threats & gates)   ·   items auto-pickup on touch', 16, H - 14);
+    }
+
     // ===== Sprint 8.5: first-run onboarding bar (click or [O] to dismiss) =====
-    if (!(this.getIsOnboarded?.() ?? isOnboarded())) {
+    // Also suppressed mid-minigame: it sits exactly where the solve hint draws.
+    if (!threatActive && !(this.getIsOnboarded?.() ?? isOnboarded())) {
       drawOnboardingBar(ctx, W, H);
     }
   }

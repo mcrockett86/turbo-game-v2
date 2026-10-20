@@ -16,9 +16,12 @@ body {
 }
 
 #game-container {
-  width: 100%;
-  max-width: 1280px;
-  height: 720px;
+  /* Fit the whole 16:9 stage inside the viewport (was a fixed 720px tall,
+     which clipped the bottom HUD rows and dialogue bubble on shorter
+     windows — the canvas engine re-reads its CSS box on resize, so the
+     game scales cleanly). Capped at the design size 1280x720. */
+  width: min(1280px, 100vw, calc(100vh * 16 / 9));
+  aspect-ratio: 16 / 9;
   background: #1a1a2e;
   border-radius: 16px;
   overflow: hidden;
@@ -210,67 +213,11 @@ canvas {
   height: 100%;
 }
 
-/* HUD Overlay */
-#hud-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  pointer-events: none;
-}
-
-#happiness-bar-container {
-  background: rgba(255, 255, 255, 0.9);
-  padding: 0.75rem 1.5rem;
-  border-radius: 9999px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-#happiness-label {
-  font-weight: 700;
-  color: #334155;
-  margin-right: 1rem;
-}
-
-#happiness-bar {
-  width: 200px;
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 9999px;
-  overflow: hidden;
-}
-
-#happiness-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #22c55e 100%);
-  width: 100%;
-  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-#zone-indicator {
-  color: white;
-  font-weight: 600;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.hud-btn {
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  padding: 0.75rem;
-  border-radius: 9999px;
-  cursor: pointer;
-  font-size: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.hud-btn:hover {
-  background: white;
-}
+/* HUD Overlay — REMOVED. This DOM block (happiness bar, zone indicator, 🗺️
+   button) predates the canvas HUD (engine/render/hud.ts), which now draws all
+   of it. Nothing in src/ or tests/ referenced these ids, and the 🗺️ button
+   floated over the canvas minimap's top-right corner, covering zone nodes and
+   the explored/total counter. */
 
 /* Utility Classes */
 .hidden {

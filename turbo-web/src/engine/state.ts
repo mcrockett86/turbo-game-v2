@@ -327,7 +327,11 @@ export class StateManager {
       if (this.state.completedGoalIds.has(goal.id)) return;
 
       let achieved = false;
-      const { type, refId, count = 1 } = goal.requirement;
+      // STORY_GOALS is an untyped literal, so TS narrows `requirement` to the
+      // shapes literally present in data.ts — none of which spell out `count`.
+      // Read it through the StoryGoal contract so the optional knob is visible.
+      const { type, refId } = goal.requirement as { type: string; refId: string };
+      const count = (goal.requirement as { count?: number }).count ?? 1;
 
       if (type === 'item') {
         const slot = this.state.inventory.find(s => s.item === refId);

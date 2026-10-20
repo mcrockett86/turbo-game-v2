@@ -22,6 +22,16 @@ interface ExitMarker {
   isZoneGate: boolean;
 }
 
+/** A piece of non-interactive furniture (axis-aligned, world units). */
+interface ClutterObj {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+  label: string;
+}
+
 export class FpRoomRenderer extends BaseRenderer {
   private room: Room | null = null;
   private zoneRooms: Room[] | null = null; // all rooms in the zone (for name lookup + geometry)
@@ -29,6 +39,17 @@ export class FpRoomRenderer extends BaseRenderer {
   private playerY = 0;
   private features: Map<string, { feature: RoomFeature; state: 'active' | 'locked' | 'completed' }> = new Map();
   private exits: ExitMarker[] = [];
+  /**
+   * Non-interactive furniture in the current room (collision + art).
+   *
+   * Declared here because it is written by generateClutter() and read by the
+   * collision pass and renderClutter(). It was previously undeclared, so
+   * `this.clutter.push(...)` threw "Cannot read properties of undefined
+   * (reading 'push')" inside onInit() — which aborted room setup BEFORE the
+   * key/mouse listeners were attached, leaving the player standing in a room
+   * they could not move in or leave.
+   */
+  private clutter: ClutterObj[] = [];
 
   // Movement
   private keysPressed: Set<string> = new Set();
@@ -145,6 +166,10 @@ export class FpRoomRenderer extends BaseRenderer {
     if (!this.room) return;
     const { w, d } = this.room;
     const base = this.room.color;
+    // Rebuilt per room: this runs from onInit(), and a stale array would
+    // accumulate furniture across rooms (and leak collision boxes into a room
+    // whose furniture they were never placed in).
+    this.clutter = [];
     // Add some random realistic obstacles a dog would navigate around
     const types = [
         { w: 40, h: 20, color: this.shadeColor(base, -0.2), label: 'Rug' },
@@ -152,12 +177,33 @@ export class FpRoomRenderer extends BaseRenderer {
         { w: 60, h: 30, color: this.shadeColor(base, -0.3), label: 'Crate' },
         { w: 30, h: 30, color: this.shadeColor(base, -0.1), label: 'Pillow' },
     ];
-    
+
+    // The player spawns at the room centre and furniture is solid, so a piece
+    // landing there would wedge them (both axes blocked, no way out) — the
+    // "stuck in a room" symptom. Rooms are small (some are 120x150 world
+    // units), so a fixed clearance is often geometrically impossible: scale
+    // it to the room and SKIP the item when no legal spot exists rather than
+    // force-placing it on top of the spawn.
+    const spawnX = w / 2;
+    const spawnY = d / 2;
+    const SPAWN_CLEAR = Math.min(40, Math.max(0, Math.min(w, d) / 4));
+
     for(let i=0; i<3; i++) {
         const t = types[Math.floor(Math.random() * types.length)];
+        let placed = false;
+        let x = 0;
+        let y = 0;
+        for (let attempt = 0; attempt < 12 && !placed; attempt++) {
+            x = 40 + Math.random() * Math.max(1, w - 80);
+            y = 40 + Math.random() * Math.max(1, d - 80);
+            const cx = Math.max(x, Math.min(spawnX, x + t.w));
+            const cy = Math.max(y, Math.min(spawnY, y + t.h));
+            if (Math.hypot(spawnX - cx, spawnY - cy) > SPAWN_CLEAR) placed = true;
+        }
+        if (!placed) continue; // no legal spot in this room — drop the item
         this.clutter.push({
-            x: 40 + Math.random() * (w - 80),
-            y: 40 + Math.random() * (d - 80),
+            x,
+            y,
             w: t.w,
             h: t.h,
             color: t.color,
@@ -246,18 +292,11 @@ export class FpRoomRenderer extends BaseRenderer {
       // E/Space while a door-threat is active -> trigger the threat (stay in this room)
       if (this.interactKeyHeld() && this.doorThreatId) {
         this.interactQueued = false;
-    
-    // Populate non-interactive clutter (furniture, boxes, rugs)
-    this.generateClutter();
-
         this.onDoorThreat?.(this.doorThreatId);
         this.doorThreatId = null; // one-shot
         return;
       }
       this.interactQueued = false;
-    
-    // Populate non-interactive clutter (furniture, boxes, rugs)
-    this.generateClutter();
 
       const exitId = nearest.roomId;
       this.onExitInteract?.(exitId);
@@ -298,17 +337,30 @@ export class FpRoomRenderer extends BaseRenderer {
     newX = Math.max(padding, Math.min(this.room.w - padding, newX));
     newY = Math.max(padding, Math.min(this.room.d - padding, newY));
 
-    // Collision detection with clutter
-    for (const obj of this.clutter) {
-        const closestX = Math.max(obj.x, Math.min(newX, obj.x + obj.w));
-        const closestY = Math.max(obj.y, Math.min(newY, obj.y + obj.h));
-        const dist = Math.hypot(newX - closestX, newY - closestY);
-        if (dist < padding) {
-            // Simple slide: if we hit it, stop the axis that caused the collision
-            if (this.playerX === newX) newX = this.playerX;
-            if (this.playerY === newY) newY = this.playerY;
-        }
-    }
+    // Collision with furniture. Axes are resolved independently so the player
+    // slides along a piece of furniture instead of sticking to it. (The
+    // previous version did `newX = this.playerX` inside the hit branch — a
+    // self-assignment no-op — so furniture never actually blocked anything.)
+    //
+    // An object that ALREADY contains the player is ignored: without that
+    // exemption, spawning (or being teleported) inside a piece of furniture
+    // blocks both axes permanently and the player can never move again —
+    // precisely the "stuck, can't get back to the play area" failure mode.
+    const inside = (px: number, py: number, o: ClutterObj): boolean =>
+      px >= o.x && px <= o.x + o.w && py >= o.y && py <= o.y + o.h;
+    const blocked = (px: number, py: number): boolean => {
+      for (const obj of this.clutter) {
+        if (inside(this.playerX, this.playerY, obj)) continue;
+        const closestX = Math.max(obj.x, Math.min(px, obj.x + obj.w));
+        const closestY = Math.max(obj.y, Math.min(py, obj.y + obj.h));
+        if (Math.hypot(px - closestX, py - closestY) < padding) return true;
+      }
+      return false;
+    };
+    if (blocked(newX, this.playerY)) newX = this.playerX;
+    if (blocked(this.playerX, newY)) newY = this.playerY;
+    // Corner case: both axes individually clear but the diagonal collides.
+    if (blocked(newX, newY)) { newX = this.playerX; newY = this.playerY; }
     
     this.playerX = newX;
     this.playerY = newY;

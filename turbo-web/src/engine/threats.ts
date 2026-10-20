@@ -25,9 +25,14 @@ import type { Threat, ThreatType, ThreatDifficulty } from '../types';
  */
 export function defaultDifficulty(type: ThreatType): ThreatDifficulty {
   switch (type) {
-    case 'timing': return { gapWidth: 24, speed: 45 };
-    case 'combat': return { beats: 3, pulseSpeed: 0.7, targetWindow: 0.2 };
-    case 'sneak': return { riseRate: 30, fallRate: 20, safeHold: 3.0 };
+    // Every type carries a `timeLimit`: a minigame that never resolves holds
+    // the whole game hostage (isBusy blocks input + the zone renderer), so an
+    // idle player must always be released. Timing/combat previously had none.
+    // These are deliberately generous — a backstop for an unreachable win
+    // condition or an AFK player, never a timer the player races.
+    case 'timing': return { gapWidth: 24, speed: 45, timeLimit: 20 };
+    case 'combat': return { beats: 3, pulseSpeed: 0.7, targetWindow: 0.2, timeLimit: 25 };
+    case 'sneak': return { riseRate: 30, fallRate: 20, safeHold: 3.0, timeLimit: 30 };
     case 'comfort': return { holdRate: 25, timeLimit: 6 };
   }
 }
@@ -103,6 +108,16 @@ export class ThreatManager extends BaseRenderer {
   private introTimer = 0;
   private readonly INTRO_DURATION = 1.5;
 
+  // Stability: every minigame has a hard ceiling. Without one, an idle player
+  // leaves `isBusy` true forever — the game loop then ignores all input and
+  // never updates the zone renderer, so the player is stuck on the minigame
+  // with no way back to the play area.
+  private activeElapsed = 0;
+  private activeLimit = 0;
+  // Bumped on every start(). A finish() timeout from a superseded threat must
+  // not release the listeners/state of the threat that replaced it.
+  private generation = 0;
+
   // Input — ThreatManager fully owns the keyboard while a threat is active
   private keysHeld: Set<string> = new Set();
   // Sprint 8.5: mouse parity for hold-based minigames (comfort hold, sneak stillness)
@@ -132,13 +147,13 @@ export class ThreatManager extends BaseRenderer {
 
   /** Start a threat mini-game. Threat must come from the THREATS data. */
   start(threat: Threat): void {
-    // Guard against double-start (e.g. a stale entry-threat timer firing after
-    // we already started a different threat). Re-arming the key listeners on
-    // every start would otherwise leak a duplicate pair per threat cycle.
-    if (this.phase !== 'idle') {
-      window.removeEventListener('keydown', this.boundKeyDown);
-      window.removeEventListener('keyup', this.boundKeyUp);
-    }
+    // Guard against double-start / a stale timer firing after we already
+    // started a different threat. Tear the previous cycle down completely
+    // (key AND canvas listeners) before re-arming — re-arming on every start
+    // without this leaked a duplicate listener pair per threat cycle, and a
+    // pending finish() from the old cycle could then tear down the new one.
+    ++this.generation;
+    if (this.phase !== 'idle') this.release();
 
     this.onStart?.(threat);
     this.currentThreat = threat;
@@ -166,6 +181,11 @@ export class ThreatManager extends BaseRenderer {
     this.sneak = { detection: 0, riseRate: diff.riseRate ?? 30, fallRate: diff.fallRate ?? 20, failThreshold: 100 };
     this.sneakSafeHold = diff.safeHold ?? 3.0;
     this.comfort = { progress: 0, rate: diff.holdRate ?? 25, timeLimit: diff.timeLimit ?? 6, elapsed: 0 };
+
+    // Hard ceiling for this cycle (comfort already self-limits via its own
+    // timer; the ceiling is a backstop for every type, incl. a stuck intro).
+    this.activeElapsed = 0;
+    this.activeLimit = (diff.timeLimit ?? 12) + 4;
 
     window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('keyup', this.boundKeyUp);
@@ -221,6 +241,15 @@ export class ThreatManager extends BaseRenderer {
       return;
     }
 
+    // Hard ceiling: no minigame may hold input forever. If the player goes
+    // idle (or a type's own win/lose condition can't be reached), auto-fail
+    // so the cycle resolves and control returns to the play area.
+    this.activeElapsed += delta;
+    if (this.activeLimit > 0 && this.activeElapsed >= this.activeLimit) {
+      this.finish(false);
+      return;
+    }
+
     switch (this.currentType) {
       case 'timing': this.updateTiming(delta); break;
       case 'combat': this.updateCombat(delta); break;
@@ -256,15 +285,19 @@ export class ThreatManager extends BaseRenderer {
     // Themed scene: zone backdrop + stage actor + readability vignette (Sprint 8.2)
     drawThreatScene(ctx, this.currentThreat, this.sceneTime, W, H);
 
-    // Threat header (top band, drawn over the scene for readability)
+    // Threat header (top band, drawn over the scene for readability).
+    // The HUD zone pill occupies y 14..68 at the same center column, so the
+    // old H*0.10 baseline (57..72px) drew the threat name straight through
+    // it ("Big Wave" over "Sandy Beach"). Keep the title below the pill band.
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 26px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${this.currentThreat.icon} ${this.currentThreat.name}`, W / 2, H * 0.10);
+    const titleY = Math.max(H * 0.10, 98);
+    ctx.fillText(`${this.currentThreat.icon} ${this.currentThreat.name}`, W / 2, titleY);
 
     ctx.font = '13px sans-serif';
     ctx.fillStyle = '#c8cede';
-    ctx.fillText(this.currentThreat.description, W / 2, H * 0.165);
+    ctx.fillText(this.currentThreat.description, W / 2, Math.max(H * 0.165, titleY + 24));
 
     // Solve hint (bottom band; hidden once the outcome banner is up)
     if (this.phase !== 'resolved') {
@@ -582,6 +615,7 @@ export class ThreatManager extends BaseRenderer {
   private finish(success: boolean): void {
     if (!this.currentThreat) return;
     const threatId = this.currentThreat.name; // stable id for state
+    const gen = this.generation; // this cycle's identity
 
     this.phase = 'resolved';
     this.onStateChange?.(this.phase, this.currentThreat);
@@ -589,19 +623,41 @@ export class ThreatManager extends BaseRenderer {
 
     // Brief pause before callback so the player sees the outcome
     setTimeout(() => {
-      this.onResolve?.(threatId, success);
-      this.phase = 'idle';
-      this.currentThreat = null;
-      this.currentType = null;
-      window.removeEventListener('keydown', this.boundKeyDown);
-      window.removeEventListener('keyup', this.boundKeyUp);
-      this.canvas?.removeEventListener('click', this.boundCanvasClick);
-      this.canvas?.removeEventListener('mousedown', this.boundMouseDown);
-      this.canvas?.removeEventListener('mouseup', this.boundMouseUp);
-      this.canvas?.removeEventListener('mouseleave', this.boundMouseUp);
-      this.canvas?.removeEventListener('mousemove', this.boundMouseMove);
-      this.onStateChange?.(this.phase, null);
+      // A newer threat has since started (start() bumps the generation):
+      // releasing now would tear down the NEW cycle's listeners and state.
+      if (gen !== this.generation) return;
+      // Cleanup MUST happen even if a consumer throws: while `phase` is not
+      // 'idle', isBusy stays true, which makes the game loop ignore all input
+      // and skip the zone renderer — a permanent soft-lock with no way back to
+      // the play area. (This is why a dialogue/panel error could trap players.)
+      try {
+        this.onResolve?.(threatId, success);
+      } catch (err) {
+        console.error('[Turbo] threat onResolve consumer failed:', err);
+      } finally {
+        this.release();
+      }
     }, 600);
+  }
+
+  /**
+   * Return the manager to idle and give the keyboard back to the game.
+   * Idempotent, and safe to call from any phase.
+   */
+  private release(): void {
+    this.phase = 'idle';
+    this.currentThreat = null;
+    this.currentType = null;
+    this.activeElapsed = 0;
+    this.activeLimit = 0;
+    window.removeEventListener('keydown', this.boundKeyDown);
+    window.removeEventListener('keyup', this.boundKeyUp);
+    this.canvas?.removeEventListener('click', this.boundCanvasClick);
+    this.canvas?.removeEventListener('mousedown', this.boundMouseDown);
+    this.canvas?.removeEventListener('mouseup', this.boundMouseUp);
+    this.canvas?.removeEventListener('mouseleave', this.boundMouseUp);
+    this.canvas?.removeEventListener('mousemove', this.boundMouseMove);
+    this.onStateChange?.(this.phase, null);
   }
 
   // ===== Input =====
